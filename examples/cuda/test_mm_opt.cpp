@@ -26,6 +26,7 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "test_mm_opt.hpp"
+#define BLOCK_DIM 8 // this block dim needs to match the same marco in the riscv binary
 #define ALLOC_NAME "default_allocator"
 
 void host_mm_opt(hb_mc_host_tensor_t<float> *result,
@@ -72,15 +73,25 @@ int kernel_matrix_mul (int argc, char **argv) {
                 return rc;
         }
 
+        //************************************************************
+        // Define tg_dim_x/y: number of tiles in each tile group
+        // Calculate grid_dim_x/y: number of tile groups needed based on block_size_x/y
+        //************************************************************
+        hb_mc_dimension_t dev_dim = hb_mc_config_get_dimension_vcore(hb_mc_manycore_get_config(device.mc));
+
+        hb_mc_dimension_t tg_dim = { .x = dev_dim.x, .y = dev_dim.y };
+
+        hb_mc_dimension_t grid_dim = { .x = 1, .y = 1};
+
 
         //************************************************************
         // Allocate memory on the device for mat1, mat2, and out
         //************************************************************
         hb_mc_host_tensor_t<float> Hmat1, Hmat2, Hout, Hresult;
 
-        uint32_t M = 128;
-        uint32_t N = (M/8);
-        uint32_t P = (N*8);
+        uint32_t M = BLOCK_DIM * 4 * dev_dim.y;
+        uint32_t N = BLOCK_DIM * 5;
+        uint32_t P = BLOCK_DIM * 3 * dev_dim.x;
 
         eva_t _mat2, _out, _mat1;
         hb_mc_device_tensor_t mat1, mat2, out;
@@ -286,18 +297,6 @@ int kernel_matrix_mul (int argc, char **argv) {
           return rc;
           }
         */
-
-        //************************************************************
-        // Define block_size_x/y: amount of work for each tile group
-        // Define tg_dim_x/y: number of tiles in each tile group
-        // Calculate grid_dim_x/y: number of tile groups needed based on block_size_x/y
-        //************************************************************
-        hb_mc_dimension_t dev_dim = hb_mc_config_get_dimension_vcore(hb_mc_manycore_get_config(device.mc));
-
-        hb_mc_dimension_t tg_dim = { .x = dev_dim.x, .y = dev_dim.y };
-
-        hb_mc_dimension_t grid_dim = { .x = 1, .y = 1};
-
 
         //************************************************************
         // Prepare list of mat1 arguments for kernel.
