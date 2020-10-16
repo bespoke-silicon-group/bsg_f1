@@ -301,7 +301,7 @@ int kernel_matrix_mul (int argc, char **argv) {
         //************************************************************
         // Prepare list of mat1 arguments for kernel.
         //************************************************************
-        uint32_t cuda_argv[6] = {_out, _mat1, _mat2};
+        uint32_t cuda_argv[6] = {_out, _mat1, _mat2, BLOCK_DIM};
 
         //************************************************************
         // Enquque grid of tile groups, pass in grid and tile group
