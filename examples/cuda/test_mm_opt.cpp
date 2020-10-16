@@ -1,19 +1,19 @@
 // Copyright (c) 2019, University of Washington All rights reserved.
-// 
+//
 // Redistribution and use in source and binary forms, with or without modification,
 // are permitted provided that the following conditions are met:
-// 
+//
 // Redistributions of source code must retain the above copyright notice, this list
 // of conditions and the following disclaimer.
-// 
+//
 // Redistributions in binary form must reproduce the above copyright notice, this
 // list of conditions and the following disclaimer in the documentation and/or
 // other materials provided with the distribution.
-// 
+//
 // Neither the name of the copyright holder nor the names of its contributors may
 // be used to endorse or promote products derived from this software without
 // specific prior written permission.
-// 
+//
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
 // ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 // WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -60,14 +60,14 @@ int kernel_matrix_mul (int argc, char **argv) {
         //
         hb_mc_device_t device;
         rc = hb_mc_device_init(&device, test_name, 0);
-        if (rc != HB_MC_SUCCESS) { 
+        if (rc != HB_MC_SUCCESS) {
                 bsg_pr_err("Failed to initialize device.\n");
                 return rc;
         }
 
 
         rc = hb_mc_device_program_init(&device, bin_path, ALLOC_NAME, 0);
-        if (rc != HB_MC_SUCCESS) { 
+        if (rc != HB_MC_SUCCESS) {
                 bsg_pr_err("Failed to initialize program.\n");
                 return rc;
         }
@@ -100,7 +100,7 @@ int kernel_matrix_mul (int argc, char **argv) {
         rc |= hb_mc_device_malloc(&device, mat1.dims * sizeof(uint32_t), &mat1.strides);
         rc |= hb_mc_device_malloc(&device, mat1.dims * sizeof(uint32_t), &mat1.sizes);
         rc |= hb_mc_device_malloc(&device, mat1.N    * sizeof(*Hmat1.data), &mat1.data);
-        if (rc != HB_MC_SUCCESS) { 
+        if (rc != HB_MC_SUCCESS) {
                 bsg_pr_err("Failed to allocate mat1 on device.\n");
                 return rc;
         }
@@ -110,7 +110,7 @@ int kernel_matrix_mul (int argc, char **argv) {
         rc |= hb_mc_device_malloc(&device, mat2.dims * sizeof(uint32_t), &mat2.strides);
         rc |= hb_mc_device_malloc(&device, mat2.dims * sizeof(uint32_t), &mat2.sizes);
         rc |= hb_mc_device_malloc(&device, mat2.N    * sizeof(*Hmat2.data), &mat2.data);
-        if (rc != HB_MC_SUCCESS) { 
+        if (rc != HB_MC_SUCCESS) {
                 bsg_pr_err("Failed to allocate mat2 on device.\n");
                 return rc;
         }
@@ -120,7 +120,7 @@ int kernel_matrix_mul (int argc, char **argv) {
         rc |= hb_mc_device_malloc(&device, out.dims * sizeof(uint32_t), &out.strides);
         rc |= hb_mc_device_malloc(&device, out.dims * sizeof(uint32_t), &out.sizes);
         rc |= hb_mc_device_malloc(&device, out.N    * sizeof(*Hout.data), &out.data);
-        if (rc != HB_MC_SUCCESS) { 
+        if (rc != HB_MC_SUCCESS) {
                 bsg_pr_err("Failed to allocate out on device.\n");
                 return rc;
         }
@@ -178,14 +178,14 @@ int kernel_matrix_mul (int argc, char **argv) {
         //************************************************************
         // Copy mat1 and mat2, from host onto device
         //************************************************************
-        void *dst, *src; 
+        void *dst, *src;
 
         // Copy mat1
         bsg_pr_info("Copying mat1\n");
         dst = (void *) ((intptr_t) _mat1);
         src = (void *) &mat1;
         rc = hb_mc_device_memcpy (&device, dst, src, sizeof(mat1), HB_MC_MEMCPY_TO_DEVICE);
-        if (rc != HB_MC_SUCCESS) { 
+        if (rc != HB_MC_SUCCESS) {
                 bsg_pr_err("Failed to copy mat1 to device.\n");
                 return rc;
         }
@@ -193,7 +193,7 @@ int kernel_matrix_mul (int argc, char **argv) {
         dst = (void *) ((intptr_t) mat1.strides);
         src = (void *) Hmat1.strides;
         rc = hb_mc_device_memcpy (&device, dst, src, Hmat1.dims * sizeof(*Hmat1.strides), HB_MC_MEMCPY_TO_DEVICE);
-        if (rc != HB_MC_SUCCESS) { 
+        if (rc != HB_MC_SUCCESS) {
                 bsg_pr_err("Failed to copy mat1.strides to device.\n");
                 return rc;
         }
@@ -201,7 +201,7 @@ int kernel_matrix_mul (int argc, char **argv) {
         dst = (void *) ((intptr_t) mat1.sizes);
         src = (void *) Hmat1.sizes;
         rc = hb_mc_device_memcpy (&device, dst, src, Hmat1.dims * sizeof(*Hmat1.sizes), HB_MC_MEMCPY_TO_DEVICE);
-        if (rc != HB_MC_SUCCESS) { 
+        if (rc != HB_MC_SUCCESS) {
                 bsg_pr_err("Failed to copy mat1.sizes to device.\n");
                 return rc;
         }
@@ -209,18 +209,18 @@ int kernel_matrix_mul (int argc, char **argv) {
         dst = (void *) ((intptr_t) mat1.data);
         src = (void *) Hmat1.data;
         rc = hb_mc_device_memcpy (&device, dst, src, Hmat1.N * sizeof(*Hmat1.data), HB_MC_MEMCPY_TO_DEVICE);
-        if (rc != HB_MC_SUCCESS) { 
+        if (rc != HB_MC_SUCCESS) {
                 bsg_pr_err("Failed to copy mat1.data to device.\n");
                 return rc;
         }
 
-        
+
         // Copy mat2
         bsg_pr_info("Copying mat2\n");
         dst = (void *) ((intptr_t) _mat2);
         src = (void *) &mat2;
         rc = hb_mc_device_memcpy (&device, dst, src, sizeof(mat2), HB_MC_MEMCPY_TO_DEVICE);
-        if (rc != HB_MC_SUCCESS) { 
+        if (rc != HB_MC_SUCCESS) {
                 bsg_pr_err("Failed to copy _mat2 to device.\n");
                 return rc;
         }
@@ -228,7 +228,7 @@ int kernel_matrix_mul (int argc, char **argv) {
         dst = (void *) ((intptr_t) mat2.strides);
         src = (void *) Hmat2.strides;
         rc = hb_mc_device_memcpy (&device, dst, src, Hmat2.dims * sizeof(*Hmat2.strides), HB_MC_MEMCPY_TO_DEVICE);
-        if (rc != HB_MC_SUCCESS) { 
+        if (rc != HB_MC_SUCCESS) {
                 bsg_pr_err("Failed to copy mat2.strides to device.\n");
                 return rc;
         }
@@ -236,7 +236,7 @@ int kernel_matrix_mul (int argc, char **argv) {
         dst = (void *) ((intptr_t) mat2.sizes);
         src = (void *) Hmat2.sizes;
         rc = hb_mc_device_memcpy (&device, dst, src, Hmat2.dims * sizeof(*Hmat2.sizes), HB_MC_MEMCPY_TO_DEVICE);
-        if (rc != HB_MC_SUCCESS) { 
+        if (rc != HB_MC_SUCCESS) {
                 bsg_pr_err("Failed to copy mat2.sizes to device.\n");
                 return rc;
         }
@@ -244,7 +244,7 @@ int kernel_matrix_mul (int argc, char **argv) {
         dst = (void *) ((intptr_t) mat2.data);
         src = (void *) Hmat2.data;
         rc = hb_mc_device_memcpy (&device, dst, src, Hmat2.N * sizeof(*Hmat2.data), HB_MC_MEMCPY_TO_DEVICE);
-        if (rc != HB_MC_SUCCESS) { 
+        if (rc != HB_MC_SUCCESS) {
                 bsg_pr_err("Failed to copy mat2.data to device.\n");
                 return rc;
         }
@@ -255,7 +255,7 @@ int kernel_matrix_mul (int argc, char **argv) {
         dst = (void *) ((intptr_t) _out);
         src = (void *) &out;
         rc = hb_mc_device_memcpy (&device, dst, src, sizeof(out), HB_MC_MEMCPY_TO_DEVICE);
-        if (rc != HB_MC_SUCCESS) { 
+        if (rc != HB_MC_SUCCESS) {
                 bsg_pr_err("Failed to copy _out to device.\n");
                 return rc;
         }
@@ -263,7 +263,7 @@ int kernel_matrix_mul (int argc, char **argv) {
         dst = (void *) ((intptr_t) out.strides);
         src = (void *) Hout.strides;
         rc = hb_mc_device_memcpy (&device, dst, src, Hout.dims * sizeof(*Hout.strides), HB_MC_MEMCPY_TO_DEVICE);
-        if (rc != HB_MC_SUCCESS) { 
+        if (rc != HB_MC_SUCCESS) {
                 bsg_pr_err("Failed to copy out.strides to device.\n");
                 return rc;
         }
@@ -271,7 +271,7 @@ int kernel_matrix_mul (int argc, char **argv) {
         dst = (void *) ((intptr_t) out.sizes);
         src = (void *) Hout.sizes;
         rc = hb_mc_device_memcpy (&device, dst, src, Hout.dims * sizeof(*Hout.sizes), HB_MC_MEMCPY_TO_DEVICE);
-        if (rc != HB_MC_SUCCESS) { 
+        if (rc != HB_MC_SUCCESS) {
                 bsg_pr_err("Failed to copy out.sizes to device.\n");
                 return rc;
         }
@@ -281,7 +281,7 @@ int kernel_matrix_mul (int argc, char **argv) {
           dst = (void *) ((intptr_t) out.data);
           src = (void *) Hout.data;
           rc = hb_mc_device_memcpy (&device, dst, src, Hout.N * sizeof(*Hout.data), HB_MC_MEMCPY_TO_DEVICE);
-          if (rc != HB_MC_SUCCESS) { 
+          if (rc != HB_MC_SUCCESS) {
           bsg_pr_err("Failed to copy out.data to device.\n");
           return rc;
           }
@@ -310,14 +310,14 @@ int kernel_matrix_mul (int argc, char **argv) {
         //************************************************************
         bsg_pr_info("Enqueue Kernel\n");
         rc = hb_mc_kernel_enqueue (&device, grid_dim, tg_dim, "kernel_mm_opt", sizeof(cuda_argv)/sizeof(cuda_argv[0]), cuda_argv);
-        if (rc != HB_MC_SUCCESS) { 
+        if (rc != HB_MC_SUCCESS) {
                 bsg_pr_err("failed to initialize grid.\n");
                 return rc;
         }
 
 
         //************************************************************
-        // Launch and execute all tile groups on device and wait for all to finish. 
+        // Launch and execute all tile groups on device and wait for all to finish.
         //************************************************************
         bsg_pr_info("Execute Kernel\n");
 
@@ -329,33 +329,33 @@ int kernel_matrix_mul (int argc, char **argv) {
         hb_mc_manycore_get_cycle((&device)->mc, &cycle_start);
 
         rc = hb_mc_device_tile_groups_execute(&device);
-        if (rc != HB_MC_SUCCESS) { 
+        if (rc != HB_MC_SUCCESS) {
                 bsg_pr_err("failed to execute tile groups.\n");
                 return rc;
-        }       
+        }
 
         hb_mc_manycore_get_cycle((&device)->mc, &cycle_end);
         hb_mc_manycore_get_icount((&device)->mc, e_instr_float, &fops_end);
         hb_mc_manycore_get_icount((&device)->mc, e_instr_all, &instr_end);
 
         //************************************************************
-        // Copy result matrix back from device DRAM into host memory. 
+        // Copy result matrix back from device DRAM into host memory.
         //************************************************************
         bsg_pr_info("Copying result back\n");
         src = (void *) ((intptr_t) out.data);
         dst = (void *) Hout.data;
         rc = hb_mc_device_memcpy (&device, dst, src, Hout.N * sizeof(*Hout.data), HB_MC_MEMCPY_TO_HOST);
-        if (rc != HB_MC_SUCCESS) { 
+        if (rc != HB_MC_SUCCESS) {
                 bsg_pr_err("failed to copy memory from device.\n");
                 return rc;
         }
 
 
         //************************************************************
-        // Freeze the tiles and memory manager cleanup. 
+        // Freeze the tiles and memory manager cleanup.
         //************************************************************
-        rc = hb_mc_device_finish(&device); 
-        if (rc != HB_MC_SUCCESS) { 
+        rc = hb_mc_device_finish(&device);
+        if (rc != HB_MC_SUCCESS) {
                 bsg_pr_err("failed to de-initialize device.\n");
                 return rc;
         }
@@ -372,7 +372,7 @@ int kernel_matrix_mul (int argc, char **argv) {
                 sse += (Hresult.data[i] - Hout.data[i]) * (Hresult.data[i] - Hout.data[i]);
         }
 
-        if (sse >= .01) { 
+        if (sse >= .01) {
                 bsg_pr_err(BSG_RED("Matrix Mismatch.(SSE: %f)\n"), sse);
                 return HB_MC_FAIL;
         }
