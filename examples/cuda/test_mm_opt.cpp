@@ -89,9 +89,12 @@ int kernel_matrix_mul (int argc, char **argv) {
         //************************************************************
         hb_mc_host_tensor_t<float> Hmat1, Hmat2, Hout, Hresult;
 
-        uint32_t M = BLOCK_DIM * 4 * dev_dim.y;
-        uint32_t N = BLOCK_DIM * 5;
-        uint32_t P = BLOCK_DIM * 3 * dev_dim.x;
+        // 640x160x1280
+        uint32_t M = BLOCK_DIM * dev_dim.y * 10;
+        uint32_t N = BLOCK_DIM * 20;
+        uint32_t P = BLOCK_DIM * dev_dim.x * 10;
+
+        bsg_pr_info("Matrix Dimensions: %d x %d x %d \n", M, N, P);
 
         eva_t _mat2, _out, _mat1;
         hb_mc_device_tensor_t mat1, mat2, out;
@@ -301,7 +304,7 @@ int kernel_matrix_mul (int argc, char **argv) {
         //************************************************************
         // Prepare list of mat1 arguments for kernel.
         //************************************************************
-        uint32_t cuda_argv[6] = {_out, _mat1, _mat2, BLOCK_DIM};
+        uint32_t cuda_argv[3] = {_out, _mat1, _mat2};
 
         //************************************************************
         // Enquque grid of tile groups, pass in grid and tile group
