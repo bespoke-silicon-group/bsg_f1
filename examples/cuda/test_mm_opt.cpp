@@ -89,10 +89,14 @@ int kernel_matrix_mul (int argc, char **argv) {
         //************************************************************
         hb_mc_host_tensor_t<float> Hmat1, Hmat2, Hout, Hresult;
 
-        // 640x160x1280
-        uint32_t M = BLOCK_DIM * dev_dim.y * 10;
-        uint32_t N = BLOCK_DIM * 20;
-        uint32_t P = BLOCK_DIM * dev_dim.x * 10;
+        uint32_t M = BLOCK_DIM * dev_dim.y * 16;
+        uint32_t N = BLOCK_DIM * 16;
+        uint32_t P = BLOCK_DIM * dev_dim.x * 4;
+        /*
+        uint32_t M = BLOCK_DIM * dev_dim.y;
+        uint32_t N = BLOCK_DIM;
+        uint32_t P = BLOCK_DIM * dev_dim.x;
+        */
 
         bsg_pr_info("Matrix Dimensions: %d x %d x %d \n", M, N, P);
 
