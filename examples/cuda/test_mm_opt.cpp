@@ -89,19 +89,23 @@ int kernel_matrix_mul (int argc, char **argv) {
         //************************************************************
         hb_mc_host_tensor_t<float> Hmat1, Hmat2, Hout, Hresult;
 
-        uint32_t M = BLOCK_DIM * dev_dim.y * 16;
-        uint32_t N = BLOCK_DIM * 16;
+        // 512 x 512 x 512
+        uint32_t M = BLOCK_DIM * dev_dim.y * 8;
+        uint32_t N = BLOCK_DIM * 64;
         uint32_t P = BLOCK_DIM * dev_dim.x * 4;
+
         /*
+        // 64 x 32 x 512
         uint32_t M = BLOCK_DIM * dev_dim.y;
-        uint32_t N = BLOCK_DIM;
-        uint32_t P = BLOCK_DIM * dev_dim.x;
+        uint32_t N = BLOCK_DIM * 4;
+        uint32_t P = BLOCK_DIM * dev_dim.x * 4;
         */
 
         bsg_pr_info("Matrix Dimensions: %d x %d x %d \n", M, N, P);
 
         eva_t _mat2, _out, _mat1;
         hb_mc_device_tensor_t mat1, mat2, out;
+        size_t s;
         // Set up Tensor Metadata (Host and Device)
         // N = Number of Elements, dims = number of dimensions
         Hmat1.N = mat1.N = M * N;
@@ -117,31 +121,47 @@ int kernel_matrix_mul (int argc, char **argv) {
         rc = hb_mc_device_malloc(&device, sizeof(hb_mc_device_tensor_t), &_mat1);
         rc |= hb_mc_device_malloc(&device, mat1.dims * sizeof(uint32_t), &mat1.strides);
         rc |= hb_mc_device_malloc(&device, mat1.dims * sizeof(uint32_t), &mat1.sizes);
-        rc |= hb_mc_device_malloc(&device, mat1.N    * sizeof(*Hmat1.data), &mat1.data);
+        // Allocate twice the size for alignment
+        s = (mat1.N    * sizeof(*Hmat1.data));
+        rc |= hb_mc_device_malloc(&device, 2 * s, &mat1.data);
         if (rc != HB_MC_SUCCESS) {
                 bsg_pr_err("Failed to allocate mat1 on device.\n");
                 return rc;
         }
 
+        // Align mat1 to itself
+        mat1.data = (s - (mat1.data % s)) + mat1.data;
+
         // Construct mat2
         rc = hb_mc_device_malloc(&device, sizeof(hb_mc_device_tensor_t), &_mat2);
         rc |= hb_mc_device_malloc(&device, mat2.dims * sizeof(uint32_t), &mat2.strides);
         rc |= hb_mc_device_malloc(&device, mat2.dims * sizeof(uint32_t), &mat2.sizes);
-        rc |= hb_mc_device_malloc(&device, mat2.N    * sizeof(*Hmat2.data), &mat2.data);
+        // Allocate twice the size for alignment
+        s = (mat2.N    * sizeof(*Hmat2.data));
+        rc |= hb_mc_device_malloc(&device, 2 * s, &mat2.data);
+
         if (rc != HB_MC_SUCCESS) {
                 bsg_pr_err("Failed to allocate mat2 on device.\n");
                 return rc;
         }
 
+        // Align mat2 to itself
+        mat2.data = (s - (mat2.data % s)) + mat2.data;
+
         // Construct out
         rc = hb_mc_device_malloc(&device, sizeof(hb_mc_device_tensor_t), &_out);
         rc |= hb_mc_device_malloc(&device, out.dims * sizeof(uint32_t), &out.strides);
         rc |= hb_mc_device_malloc(&device, out.dims * sizeof(uint32_t), &out.sizes);
-        rc |= hb_mc_device_malloc(&device, out.N    * sizeof(*Hout.data), &out.data);
+        // Allocate twice the size for alignment
+        s = (out.N    * sizeof(*Hout.data));
+        rc |= hb_mc_device_malloc(&device, 2 * s, &out.data);
         if (rc != HB_MC_SUCCESS) {
                 bsg_pr_err("Failed to allocate out on device.\n");
                 return rc;
         }
+
+        // Align out to itself
+        out.data = (s - (out.data % s)) + out.data;
 
         // Initialize RNG
         // Initialize the random number generators
