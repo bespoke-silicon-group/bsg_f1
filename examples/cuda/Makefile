@@ -99,6 +99,7 @@ INDEPENDENT_TESTS += test_profiler
 INDEPENDENT_TESTS += test_tracer
 INDEPENDENT_TESTS += test_conv1d
 INDEPENDENT_TESTS += test_conv2d
+INDEPENDENT_TESTS += test_mm_opt
 
 REGRESSION_TESTS = $(UNIFIED_TESTS) $(INDEPENDENT_TESTS)
 
@@ -136,6 +137,11 @@ include $(EXAMPLES_PATH)/flow.mk
 # The default Tile Group size is 2x2
 TILE_GROUP_DIM_X = 2
 TILE_GROUP_DIM_Y = 2
+
+# Custom Tile-Group Dimensions for mm_opt. Custom tile group
+# dimensions for other kernels can be set in similar ways.
+$(CUDALITE_SRC_PATH)/mm_opt/main.riscv: TILE_GROUP_DIM_X:=$(CL_MANYCORE_DIM_X)
+$(CUDALITE_SRC_PATH)/mm_opt/main.riscv: TILE_GROUP_DIM_Y:=$(CL_MANYCORE_DIM_Y)
 
 # Force rebuild targets that depend on .FORCE, like the
 # Manycore/SPMD/CUDA Binaries
