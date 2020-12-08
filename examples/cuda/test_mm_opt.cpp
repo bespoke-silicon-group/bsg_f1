@@ -26,7 +26,7 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "test_mm_opt.hpp"
-#define BLOCK_DIM 8 // this block dim needs to match the same marco in the riscv binary
+#define BLOCK_DIM 16 // this block dim needs to match the same marco in the riscv binary
 #define ALLOC_NAME "default_allocator"
 
 void host_mm_opt(hb_mc_host_tensor_t<float> *result,
@@ -89,10 +89,10 @@ int kernel_matrix_mul (int argc, char **argv) {
         //************************************************************
         hb_mc_host_tensor_t<float> Hmat1, Hmat2, Hout, Hresult;
 
-        // 512 x 512 x 512
-        uint32_t M = BLOCK_DIM * dev_dim.y * 8;
-        uint32_t N = BLOCK_DIM * 64;
-        uint32_t P = BLOCK_DIM * dev_dim.x * 4;
+        // 768 x 768 x 768
+        uint32_t M = BLOCK_DIM * dev_dim.y * 6;
+        uint32_t N = BLOCK_DIM * 48;
+        uint32_t P = BLOCK_DIM * dev_dim.x * 3;
 
         /*
         // 64 x 32 x 512
@@ -335,7 +335,7 @@ int kernel_matrix_mul (int argc, char **argv) {
         // dimensions, kernel name, number and list of mat1 arguments
         //************************************************************
         bsg_pr_info("Enqueue Kernel\n");
-        rc = hb_mc_kernel_enqueue (&device, grid_dim, tg_dim, "kernel_mm_opt_8x8", sizeof(cuda_argv)/sizeof(cuda_argv[0]), cuda_argv);
+        rc = hb_mc_kernel_enqueue (&device, grid_dim, tg_dim, "kernel_mm_opt_16x16", sizeof(cuda_argv)/sizeof(cuda_argv[0]), cuda_argv);
         if (rc != HB_MC_SUCCESS) { 
                 bsg_pr_err("failed to initialize grid.\n");
                 return rc;
