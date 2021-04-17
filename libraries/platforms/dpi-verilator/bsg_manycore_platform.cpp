@@ -417,7 +417,7 @@ int hb_mc_platform_get_credits_used(hb_mc_manycore_t *mc, int *credits, long tim
         }
 
         if(*credits < 0){
-                manycore_pr_err(mc, "%s: Invalid credit value. Must be non-negative\n",
+                manycore_pr_err(mc, "%s: Invalid credit value: %d. Must be non-negative\n",
                                 __func__, *credits);
                 return HB_MC_INVALID;
         }

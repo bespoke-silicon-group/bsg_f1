@@ -6,4 +6,8 @@
 *~
 __pycache__
 .Xil
+*.vpp
+*.dot
+*.tree
+machines/*/V*
 

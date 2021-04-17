@@ -240,7 +240,10 @@ extern "C" {
                 hb_mc_coordinate_t tile = hb_mc_config_tile_in_pod(cfg, co);
                 if (hb_mc_config_is_dram_north(cfg, co)) {
                         return tile.x;
-                } else if (hb_mc_config_is_dram_south(cfg, co)) {
+                // Default to south DRAM pod. If hashing function becomes
+                //   more complex, check for south DRAM specifically.
+                //} else if (hb_mc_config_is_dram_south(cfg, co)) {
+                } else {
                         return  tile.x
                                 + cfg->pod_shape.x;
                 }

@@ -160,6 +160,8 @@ int hb_mc_dma_init_default(hb_mc_manycore_t *mc)
                 cache_id_to_memory_id[cache_id] = cache_id / caches_per_channel;
                 cache_id_to_bank_id[cache_id] = cache_id % caches_per_channel;
         }
+
+        return HB_MC_SUCCESS;
 }
 
 int hb_mc_dma_init(hb_mc_manycore_t *mc)
@@ -174,6 +176,9 @@ int hb_mc_dma_init(hb_mc_manycore_t *mc)
                         return hb_mc_dma_init_pod_X4Y4_X16_hbm(mc);
                 } else if (mc->config.pods.x == 1 && mc->config.pods.y == 1) {
                         return hb_mc_dma_init_pod_X1Y1_X16_hbm(mc);
+                } else {
+                        // Pod shape not recognized
+                        return HB_MC_FAIL;
                 }
         } else if (mc->config.memsys.id == HB_MC_MEMSYS_ID_TESTMEM
                    && mc->config.pod_shape.x == 16

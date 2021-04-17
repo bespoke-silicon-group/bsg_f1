@@ -45,7 +45,7 @@ typedef struct prefix_info {
 /* inserts the time into the prefix */
 static void insert_time(prefix_info_t *info, const char *prefix)
 {
-        fprintf(info->file, "%s @ (%llu): ", prefix, bsg_utc());
+        fprintf(info->file, "%s @ (%lu): ", prefix, bsg_utc());
         return;
 }
 
