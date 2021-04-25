@@ -31,6 +31,7 @@
 #include <bsg_manycore_config.h>
 
 #include <set>
+#include <bp_utils.h>
 
 /* these are convenience macros that are only good for one line prints */
 #define manycore_pr_dbg(mc, fmt, ...) \
@@ -44,113 +45,6 @@
 
 #define manycore_pr_info(mc, fmt, ...) \
         bsg_pr_info("%s: " fmt, mc->name, ##__VA_ARGS__)
-
-////////////////////////// RISC-V Host <--> Manycore API //////////////////////////
-
-// Memory mapped addresses to interact with the manycore bridge
-// BlackParrot writes to these addresses to interact with the manycore
-// Manycore device base address
-#define MC_BASE_ADDR 0x500000
-// BP --> Manycore Requests
-#define BP_TO_MC_REQ_FIFO_ADDR 0x1000
-#define BP_TO_MC_REQ_CREDITS_ADDR 0x2000
-// Manycore --> BP Responses
-#define MC_TO_BP_RESP_FIFO_ADDR 0x3000
-#define MC_TO_BP_RESP_ENTRIES_ADDR 0x4000
-// Manycore --> BP Requests
-#define MC_TO_BP_REQ_FIFO_ADDR 0x5000
-#define MC_TO_BP_REQ_ENTRIES_ADDR 0x6000
-
-/*
- * Reads the manycore bridge for number of credits remaining in the endpoint
- * @returns number of credits in the manycore bridge enddpoint
- */
-int hb_mc_platform_get_credits() {
-	uint32_t *bp_to_mc_req_credits_addr = (uint32_t *) (MC_BASE_ADDR + BP_TO_MC_REQ_CREDITS_ADDR);
-	int credits = int(*bp_to_mc_req_credits_addr);
-	return credits;
-}
-
-/*
- * Writes a 128-bit manycore packet in 32-bit chunks to the manycore bridge FIFO
- * @param[in] pkt --> Pointer to the manycore packet
- */
-void hb_mc_platform_write_to_manycore_bridge(hb_mc_packet_t *pkt) {
-	int credits;
-	
-	// Wait till there is atleast 1 credit to send the write
-	do {
-		credits = hb_mc_platform_get_credits();
-	} while (credits == 0);
-
-	uint32_t *bp_to_mc_req_fifo_addr = (uint32_t *) (MC_BASE_ADDR + BP_TO_MC_REQ_FIFO_ADDR);
-	for(int i = 0; i < 4; i++) {
-		*bp_to_mc_req_fifo_addr = pkt->words[i];
-		bp_to_mc_req_fifo_addr++;
-	}
-}
-
-/*
- * Reads the manycore bridge FIFOs in 32-bit chunks to form the 128-bit packet
- * @param[in] pkt --> Pointer to the manycore packet
- * @param[in] type --> Type of FIFO to read from
- * @returns HB_MC_SUCCESS on success, HB_MC_FAIL if FIFO type is unknown
- */
-int hb_mc_platform_read_from_manycore_bridge(hb_mc_packet_t *pkt, hb_mc_fifo_rx_t type) {
-	switch(type) {
-		case HB_MC_FIFO_RX_REQ:
-		{
-			// Check if the entries are full
-			uint32_t *mc_to_bp_req_entries_addr = (uint32_t *) (MC_BASE_ADDR + MC_TO_BP_REQ_ENTRIES_ADDR);
-			while(!(*mc_to_bp_req_entries_addr))
-				;
-
-			// Read the value
-			uint32_t *mc_to_bp_req_fifo_addr = (uint32_t *) (MC_BASE_ADDR + MC_TO_BP_REQ_FIFO_ADDR);
-			uint32_t read_status = 0xFFFF;
-			for (int i = 0; i < 4; i++) {
-				pkt->words[i] = *mc_to_bp_req_fifo_addr;
-				read_status &= pkt->words[i];
-				mc_to_bp_req_fifo_addr++;
-			}
-
-			// If all packets are 0xFFFF --> there is something wrong
-			if (read_status == 0xFFFF)
-				return HB_MC_FAIL;
-		}
-		break;
-		case HB_MC_FIFO_RX_RSP:
-		{
-			// Check if the entries are full
-			uint32_t *mc_to_bp_resp_entries_addr = (uint32_t *) (MC_BASE_ADDR + MC_TO_BP_RESP_ENTRIES_ADDR);
-			while(!(*mc_to_bp_resp_entries_addr))
-				;
-
-			// Read the value
-			uint32_t *mc_to_bp_resp_fifo_addr = (uint32_t *) (MC_BASE_ADDR + MC_TO_BP_RESP_FIFO_ADDR);
-			uint32_t read_status = 0xFFFF;
-			for (int i = 0; i < 4; i++) {
-				pkt->words[i] = *mc_to_bp_resp_fifo_addr;
-				read_status &= pkt->words[i];
-				mc_to_bp_resp_fifo_addr++;
-			}
-
-			// If all packets are 0xFFFF --> there is something wrong
-			if (read_status == 0xFFFF)
-				return HB_MC_FAIL;
-		}
-		break;
-		default:
-		{
-			bsg_pr_err("%s: Unknown packet type\n", __func__);
-      return HB_MC_FAIL;
-		}
-		break;
-	}
-	return HB_MC_SUCCESS;	
-}
-
-//////////////////////////      Platform-Level API       //////////////////////////
 
 typedef struct hb_mc_platform_t
 {
@@ -241,7 +135,7 @@ int hb_mc_platform_transmit(hb_mc_manycore_t *mc, hb_mc_packet_t *packet, hb_mc_
   }
 
 	// Write packet to the manycore bridge
-	hb_mc_platform_write_to_manycore_bridge(packet);
+	bp_hb_write_to_manycore_bridge(packet);
 
 	return HB_MC_SUCCESS;
 }
@@ -263,7 +157,7 @@ int hb_mc_platform_receive(hb_mc_manycore_t *mc, hb_mc_packet_t *packet, hb_mc_f
     return HB_MC_INVALID;
   }
 
-	int err = hb_mc_platform_read_from_manycore_bridge(packet, type); 
+	int err = bp_hb_read_from_manycore_bridge(packet, type);
 
 	if (err != 0)
 	{
@@ -316,7 +210,7 @@ int hb_mc_platform_fence(hb_mc_manycore_t *mc, long timeout) {
 
 	do
 	{
-		credits = hb_mc_platform_get_credits();
+		credits = bp_hb_get_credits();
 	} while (!(credits == (int)max_credits));
 
 	return HB_MC_SUCCESS;
