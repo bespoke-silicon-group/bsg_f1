@@ -46,6 +46,7 @@ LIB_CSOURCES += $(BSG_PLATFORM_PATH)/software/src/argp/argp-pv.c
 LIB_CSOURCES += $(BSG_PLATFORM_PATH)/software/src/argp/argp-pvh.c
 LIB_CSOURCES += $(BSG_PLATFORM_PATH)/software/src/argp/argp-xinl.c
 LIB_CSOURCES += $(BSG_PLATFORM_PATH)/software/src/bp_utils.c
+LIB_CSOURCES += $(BSG_PLATFORM_PATH)/software/src/args.c
 LIB_CSOURCES += $(BLACKPARROT_DIR)/sdk/perch/bsg_newlib_intf.c
 LIB_CSOURCES += $(BLACKPARROT_DIR)/sdk/perch/emulation.c
 
@@ -139,6 +140,6 @@ platform.clean:
 	rm -f $(BSG_PLATFORM_PATH)/libbsg_manycore_runtime.a.1
 	rm -f $(BSG_PLATFORM_PATH)/libbsgmc_cuda_legacy_pod_repl.a
 	rm -f $(BSG_PLATFORM_PATH)/libbsgmc_cuda_legacy_pod_repl.a.1
-	rm -f $(BSG_PLATFORM_PATH)/bsg_manycore_platform.so
+	rm -f $(BSG_PLATFORM_PATH)/libbsg_manycore_platform.so
 
 libraries.clean: platform.clean

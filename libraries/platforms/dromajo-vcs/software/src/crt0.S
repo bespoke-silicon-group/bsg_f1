@@ -76,6 +76,12 @@ _start:
   call dramfs_init
 #endif
 
+# Initialize the arguments
+  call __init_args
+  la a0, _argc
+  ld a0, 0(a0)
+  la a1, _argv
+
   call main
   tail bp_finish
 
