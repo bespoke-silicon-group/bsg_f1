@@ -36,6 +36,7 @@
 
 #include <bsg_manycore.h>
 #include <bsg_manycore_config.h>
+#include <cl_manycore_regression.h>
 
 #include "dromajo_cosim.h"
 #include "dromajo_manycore.h"
@@ -59,6 +60,12 @@ bool dromajo_step();
 void dromajo_transmit_packet();
 void dromajo_receive_packet();
 void dromajo_set_credits();
+
+// Global variables to store arguments
+int _argc;
+char **_argv;
+static int char_index = 0;
+int idx = 0;
 
 // DPI
 bsg_nonsynth_dpi::dpi_manycore<HB_MC_CONFIG_MAX> *dpi;
@@ -123,7 +130,7 @@ static int dpi_fifo_drain(bsg_nonsynth_dpi::dpi_manycore<HB_MC_CONFIG_MAX> *dpi,
 				err = dpi->rx_rsp(*pkt);
 			break;
 			default:
-				printf("Unknown FIFO type\n");
+				printf("[BSG_ERROR] Unknown FIFO type\n");
 				return HB_MC_FAIL;
 		}
 
@@ -133,7 +140,7 @@ static int dpi_fifo_drain(bsg_nonsynth_dpi::dpi_manycore<HB_MC_CONFIG_MAX> *dpi,
 					&& drains <= cap);
 
 	if (drains != cap)
-		printf("Failed to drain FIFO\n");
+		printf("[BSG_ERROR] Failed to drain FIFO\n");
 		return HB_MC_FAIL;
 
 	return HB_MC_SUCCESS;
@@ -207,7 +214,7 @@ bool dromajo_step() {
 }
 
 void dromajo_transmit_packet() {
-	hb_mc_packet_t *packet;
+	hb_mc_packet_t *packet, *host_resp_packet;
 	int err;
 	__m128i *pkt;
 
@@ -222,15 +229,67 @@ void dromajo_transmit_packet() {
 		packet->words[2] = host_to_mc_req_fifo->fifo[2].front();
 		packet->words[3] = host_to_mc_req_fifo->fifo[3].front();
 
-		pkt = reinterpret_cast<__m128i *>(packet);
+		// Intercept packets that are for the host and generate appropriate responses
+		if ((packet->request.x_dst == 0) && (packet->request.y_dst == 0)) {
+			host_resp_packet->response.x_dst = packet->request.x_src;
+			host_resp_packet->response.y_dst = packet->request.y_src;
+			host_resp_packet->response.load_id = 0;
+			// If EPA maps to reading arguments
+			if (packet->request.op_v2 == HB_MC_PACKET_OP_REMOTE_LOAD) {
+				host_resp_packet->response.op = packet->request.op_v2;
+				idx = packet->request.addr;
+				uint32_t data = 0;
+				if (packet->request.addr >= 0 && packet->request.addr <= 0xFF) {
+					// Copy 4 bytes of the arguments
+					int num_characters = 0;
+					// If all arguments have been read, send this finish code
+					if (idx == _argc) {
+						data = 0xFFFFFFFF;
+					}
+					else {
+						for(int i = 0; i < 4; i++) {
+							if (_argv[idx][char_index] != '\0') {
+								data = (data << 8) | _argv[idx][char_index];
+								num_characters++;
+								char_index++;
+							}
+							else {
+								data = (data << (4 - num_characters) * 8);
+								char_index = 0;
+							}
+						}
+					}
+				}
+				// Dromajo/BlackParrot wants to read the config
+				else if (packet->request.addr >= 0x100 && packet->request.addr <= 0x1FF) {
+					idx = packet->request.addr;
+					data = dpi->config[idx];
+				}
+				else
+					printf("[BSG_ERROR] Host EPA not mapped\n");
 
-		// Try to transmit until you actually can
-		err = dpi->tx_req(*pkt);
+				host_resp_packet->response.data = data;
+				// Inject the response packet into manycore response FIFO
+				// Pop the request FIFO
+				for(int j = 0; j < 4; j++) {
+					mc_to_host_resp_fifo->fifo[j].push(host_resp_packet->words[j]);
+					host_to_mc_req_fifo->fifo[j].pop();
+				}
+			}
+			else
+				printf("[BSG_ERROR] Operations other than loads are not implemented for the host\n");
+		}
+		else {
+			pkt = reinterpret_cast<__m128i *>(packet);
 
-		// Drain the FIFO once transmitted
-		if (err == BSG_NONSYNTH_DPI_SUCCESS) {
-			for (int i = 0;i < 4; i++)
-				host_to_mc_req_fifo->fifo[i].pop();
+			// Try to transmit until you actually can
+			err = dpi->tx_req(*pkt);
+
+			// Pop the FIFO once transmitted
+			if (err == BSG_NONSYNTH_DPI_SUCCESS) {
+				for (int i = 0;i < 4; i++)
+					host_to_mc_req_fifo->fifo[i].pop();
+			}
 		}
 	}
 }
@@ -244,11 +303,10 @@ void dromajo_receive_packet() {
 	err = dpi->rx_req(*pkt);
 	req_packet = reinterpret_cast<hb_mc_packet_t *>(pkt);
 
-	// Push to host if valid and mark the FIFOs as full
+	// Push to host FIFO if valid
 	if (err == BSG_NONSYNTH_DPI_SUCCESS) {
 		for (int i = 0; i < 4; i++) {
 			mc_to_host_req_fifo->fifo[i].push(req_packet->words[i]);
-			mc_to_host_req_fifo->full[i] = true;
 		}
 	}
 
@@ -256,11 +314,10 @@ void dromajo_receive_packet() {
 	err = dpi->rx_rsp(*pkt);
 	resp_packet = reinterpret_cast<hb_mc_packet_t *>(pkt);
 
-	// Push to host if valid and mark the FIFOs as full
+	// Push to host FIFO if valid
 	if (err == BSG_NONSYNTH_DPI_SUCCESS) {
 		for (int i = 0; i < 4; i++) {
 			mc_to_host_resp_fifo->fifo[i].push(resp_packet->words[i]);
-			mc_to_host_resp_fifo->full[i] = true;
 		}
 	}
 }
@@ -270,7 +327,7 @@ void dromajo_set_credits() {
 	int res = dpi->get_credits(credits);
 	if (res == BSG_NONSYNTH_DPI_SUCCESS) {
 		if (credits < 0)
-			printf("Warning! Credit value is negative!\n");
+			printf("[BSG_WARN] Warning! Credit value is negative!\n");
 
 		host_to_mc_req_fifo->credits = credits;
 	}
@@ -281,6 +338,9 @@ int vcs_main(int argc, char **argv) {
 #else
 int main(int argc, char **argv) {
 #endif
+	// Push command-line arguments into global variables
+	_argc = argc;
+	_argv = argv;
 
 	// Initialize Dromajo
 	dromajo_state = dromajo_init();
@@ -295,7 +355,7 @@ int main(int argc, char **argv) {
 	err = dpi_init(dpi, hierarchy);
 	if (err != HB_MC_SUCCESS) {
 		delete sim;
-		printf("Failed to initialize DPI!\nExiting...\n");
+		printf("[BSG_ERROR] Failed to initialize DPI!\nExiting...\n");
 		return -1;
 	}
 
@@ -304,7 +364,7 @@ int main(int argc, char **argv) {
 	if (err != HB_MC_SUCCESS) {
 		dpi_clean(dpi);
 		delete sim;
-		printf("Failed to wait for reset!\nExiting...\n");
+		printf("[BSG_ERROR] Failed to wait for reset!\nExiting...\n");
 		return -1;
 	}
 	
