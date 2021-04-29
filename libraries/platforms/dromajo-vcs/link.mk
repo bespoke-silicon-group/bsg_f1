@@ -117,6 +117,7 @@ $(BSG_PLATFORM_PATH)/test.riscv: LDFLAGS := -T$(BLACKPARROT_DIR)/sdk/linker/risc
 $(BSG_PLATFORM_PATH)/test.riscv:
 	$(RV_CXX) -D_DRAMFS -o $@ $(BSG_PLATFORM_PATH)/software/src/crt0.o $(BSG_PLATFORM_PATH)/lfs.o $< $(LDFLAGS)
 
+$(BSG_PLATFORM_PATH)/libbsg_manycore_platform.so: $(DROMAJO_OBJECTS)
 $(BSG_PLATFORM_PATH)/libbsg_manycore_platform.so: $(PLATFORM_OBJECTS)
 $(BSG_PLATFORM_PATH)/libbsg_manycore_platform.so: LDFLAGS := -fPIC
 $(BSG_PLATFORM_PATH)/libbsg_manycore_platform.so:
