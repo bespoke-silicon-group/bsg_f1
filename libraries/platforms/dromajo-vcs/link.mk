@@ -93,8 +93,8 @@ $(BSG_MACHINE_PATH)/$(BSG_PLATFORM)/vcs_simlibs/replicant_tb_top_exec/AN.DB: $(B
 	SYNOPSYS_SIM_SETUP=$< vlogan -work replicant_tb_top $(VLOGAN_FLAGS) -l $(BSG_MACHINE_PATH)/$(BSG_PLATFORM)/vlogan.exec.log
 
 # libbsg_manycore_platform will be compiled in $(BSG_PLATFORM_PATH)
-LDFLAGS += -lbsg_manycore_platform -lm
 LDFLAGS += -L$(BSG_PLATFORM_PATH) -Wl,-rpath=$(BSG_PLATFORM_PATH)
+LDFLAGS += -lbsg_manycore_platform -lm
 
 VCS_LDFLAGS += $(foreach def,$(LDFLAGS),-LDFLAGS "$(def)")
 VCS_VFLAGS  += -M -L -ntb_opts tb_timescale=1ps/1ps -lca
@@ -113,15 +113,23 @@ $(BSG_PLATFORM_PATH)/test.riscv: $(TEST_OBJECTS)
 $(BSG_PLATFORM_PATH)/test.riscv: $(BSG_PLATFORM_PATH)/lfs.o
 $(BSG_PLATFORM_PATH)/test.riscv: $(BSG_PLATFORM_PATH)/libbsg_manycore_runtime.a
 $(BSG_PLATFORM_PATH)/test.riscv: $(BSG_PLATFORM_PATH)/libbsgmc_cuda_legacy_pod_repl.a
-$(BSG_PLATFORM_PATH)/test.riscv: LDFLAGS := -T$(BLACKPARROT_DIR)/sdk/linker/riscv.ld -L$(BSG_PLATFORM_PATH) -static -nostartfiles -lstdc++ -lbsg_manycore_runtime
+$(BSG_PLATFORM_PATH)/test.riscv: $(BSG_PLATFORM_PATH)/libbsg_manycore_regression.a
+$(BSG_PLATFORM_PATH)/test.riscv: LDFLAGS := -T$(BLACKPARROT_DIR)/sdk/linker/riscv.ld -L$(BSG_PLATFORM_PATH) -static -nostartfiles -lstdc++ -lbsg_manycore_runtime -lbsg_manycore_regression
 $(BSG_PLATFORM_PATH)/test.riscv:
 	$(RV_CXX) -D_DRAMFS -o $@ $(BSG_PLATFORM_PATH)/software/src/crt0.o $(BSG_PLATFORM_PATH)/lfs.o $< $(LDFLAGS)
+	cp $@ $(subst riscv,elf,$(notdir $@))
 
-$(BSG_PLATFORM_PATH)/libbsg_manycore_platform.so: $(DROMAJO_OBJECTS)
-$(BSG_PLATFORM_PATH)/libbsg_manycore_platform.so: $(PLATFORM_OBJECTS)
-$(BSG_PLATFORM_PATH)/libbsg_manycore_platform.so: LDFLAGS := -fPIC
-$(BSG_PLATFORM_PATH)/libbsg_manycore_platform.so:
+$(BSG_PLATFORM_PATH)/libbsg_manycore_platform.so.1.0: $(DROMAJO_OBJECTS)
+$(BSG_PLATFORM_PATH)/libbsg_manycore_platform.so.1.0: $(PLATFORM_OBJECTS)
+$(BSG_PLATFORM_PATH)/libbsg_manycore_platform.so.1.0: LDFLAGS := -fPIC
+$(BSG_PLATFORM_PATH)/libbsg_manycore_platform.so.1.0:
 	$(CXX) -shared -Wl,-soname,$(basename $(notdir $@)) -o $@ $^ $(LDFLAGS)
+
+$(BSG_PLATFORM_PATH)/libbsg_manycore_platform.so.1: %: %.0
+	ln -sf $@.0 $@
+
+$(BSG_PLATFORM_PATH)/libbsg_manycore_platform.so: %: %.1
+	ln -sf $@.1 $@
 
 # VCS Generates an executable file by linking the TEST_OBJECTS with
 # the the VCS work libraries for the design, and the runtime shared
@@ -154,6 +162,8 @@ REGRESSION_PREBUILD += $(BSG_MACHINE_PATH)/$(BSG_PLATFORM)/vcs_simlibs/replicant
 REGRESSION_PREBUILD += $(BSG_MACHINE_PATH)/$(BSG_PLATFORM)/vcs_simlibs/replicant_tb_top_saifgen/AN.DB
 REGRESSION_PREBUILD += $(BSG_PLATFORM_PATH)/libbsgmc_cuda_legacy_pod_repl.a
 REGRESSION_PREBUILD += $(BSG_PLATFORM_PATH)/libbsg_manycore_runtime.a
+REGRESSION_PREBUILD += $(BSG_PLATFORM_PATH)/libbsg_manycore_regression.a
+REGRESSION_PREBUILD += $(BSG_PLATFORM_PATH)/libbsg_manycore_platform.so
 
 .PHONY: platform.link.clean
 platform.link.clean:

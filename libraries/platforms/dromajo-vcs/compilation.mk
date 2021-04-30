@@ -38,6 +38,7 @@ NC=\033[0m
 DEFINES    += -UVCS -D_DRAMFS
 INCLUDES   += -I$(LIBRARIES_PATH)
 INCLUDES   += -I$(BSG_PLATFORM_PATH)/software/include
+INCLUDES   += -I$(BSG_PLATFORM_PATH)
 INCLUDES   += -I$(BLACKPARROT_DIR)/sdk/perch
 
 CXXFLAGS   += $(DEFINES) -march=rv64imafd -mabi=lp64 -mcmodel=medany

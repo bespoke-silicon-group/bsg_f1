@@ -63,8 +63,8 @@ $(DMA_FEATURE_OBJECTS): CFLAGS += -march=rv64imafd -mcmodel=medany -mabi=lp64 -D
 $(DMA_FEATURE_OBJECTS): CXXFLAGS += -march=rv64imafd -mcmodel=medany -mabi=lp64 -D_BSD_SOURCE -D_XOPEN_SOURCE=500
 
 # Add the riscv-newlib specific includes for the library
-$(LIB_OBJECTS) $(LIB_OBJECTS_CUDA_POD_REPL): INCLUDES := -I$(BSG_PLATFORM_PATH)/software/include
-$(LIB_OBJECTS) $(LIB_OBJECTS_CUDA_POD_REPL): INCLUDES += -I$(BLACKPARROT_DIR)/sdk/perch
+$(LIB_OBJECTS) $(LIB_OBJECTS_CUDA_POD_REPL) $(LIB_OBJECTS_REGRESSION): INCLUDES := -I$(BSG_PLATFORM_PATH)/software/include
+$(LIB_OBJECTS) $(LIB_OBJECTS_CUDA_POD_REPL) $(LIB_OBJECTS_REGRESSSION): INCLUDES += -I$(BLACKPARROT_DIR)/sdk/perch
 
 # Make the litteFS file system
 $(BSG_PLATFORM_PATH)/lfs.o:
@@ -72,8 +72,8 @@ $(BSG_PLATFORM_PATH)/lfs.o:
 	$(RV_CXX) $(BLACKPARROT_DIR)/sdk/bp-tests/lfs.cpp -c -o $@ $(CXXFLAGS) $(INCLUDES)
 
 # Compile the feature libraries with the manycore runtime
-$(LIB_OBJECTS) $(LIB_OBJECTS_CUDA_POD_REPL): INCLUDES += -I$(LIBRARIES_PATH)/features/profiler
-$(LIB_OBJECTS) $(LIB_OBJECTS_CUDA_POD_REPL): INCLUDES += -I$(LIBRARIES_PATH)/features/tracer
+$(LIB_OBJECTS) $(LIB_OBJECTS_CUDA_POD_REPL) $(LIB_OBJECTS_REGRESSION): INCLUDES += -I$(LIBRARIES_PATH)/features/profiler
+$(LIB_OBJECTS) $(LIB_OBJECTS_CUDA_POD_REPL) $(LIB_OBJECTS_REGRESSION): INCLUDES += -I$(LIBRARIES_PATH)/features/tracer
 
 DROMAJO_CXXSOURCES += $(DROMAJO_DIR)/src/cutils.cpp
 DROMAJO_CXXSOURCES += $(DROMAJO_DIR)/src/dromajo_cosim.cpp
@@ -127,10 +127,16 @@ $(BSG_PLATFORM_PATH)/libbsg_manycore_runtime.a.1: %.a.1: %.so.1.0
 $(BSG_PLATFORM_PATH)/libbsgmc_cuda_legacy_pod_repl.a.1: %.a.1: %.so.1.0
 	ln -sf $(basename $(basename $@)).so.1.0 $@
 
+$(BSG_PLATFORM_PATH)/libbsg_manycore_regression.a.1: %.a.1: %.so.1.0
+	ln -sf $(basename $(basename $@)).so.1.0 $@
+
 $(BSG_PLATFORM_PATH)/libbsg_manycore_runtime.a: %: %.1
 	ln -sf $@.1 $@
 
 $(BSG_PLATFORM_PATH)/libbsgmc_cuda_legacy_pod_repl.a: %: %.1
+	ln -sf $@.1 $@
+
+$(BSG_PLATFORM_PATH)/libbsg_manycore_regression.a: %: %.1
 	ln -sf $@.1 $@
 
 platform.clean:
@@ -141,6 +147,8 @@ platform.clean:
 	rm -f $(BSG_PLATFORM_PATH)/libbsg_manycore_runtime.a.1
 	rm -f $(BSG_PLATFORM_PATH)/libbsgmc_cuda_legacy_pod_repl.a
 	rm -f $(BSG_PLATFORM_PATH)/libbsgmc_cuda_legacy_pod_repl.a.1
+	rm -f $(BSG_PLATFORM_PATH)/libbsg_manycore_regression.a
+	rm -f $(BSG_PLATFORM_PATH)/libbsg_manycore_regression.a.1
 	rm -f $(BSG_PLATFORM_PATH)/libbsg_manycore_platform.so
 
 libraries.clean: platform.clean

@@ -153,14 +153,21 @@ endif
 
 $(BSG_PLATFORM_PATH)/libbsg_manycore_regression.so.1.0: LDFLAGS  :=
 $(BSG_PLATFORM_PATH)/libbsg_manycore_regression.so.1.0: INCLUDES :=
+
+ifdef __NEWLIB
+$(BSG_PLATFORM_PATH)/libbsg_manycore_regression.so.1.0: $(LIB_OBJECTS_REGRESSION)
+	$(RV_AR) -rcs $@ $^
+else
 $(BSG_PLATFORM_PATH)/libbsg_manycore_regression.so.1.0: LD = $(CXX)
 $(BSG_PLATFORM_PATH)/libbsg_manycore_regression.so.1.0: $(LIB_OBJECTS_REGRESSION)
 	$(LD) -shared -Wl,-soname,$(basename $(notdir $@)) -o $@ $^ $(LDFLAGS)
+endif
 
 .PHONY: libraries.clean
 libraries.clean:
 	rm -f $(LIB_OBJECTS)
 	rm -f $(LIB_OBJECTS_CUDA_POD_REPL)
+	rm -f $(LIB_OBJECTS_REGRESSION)
 	rm -f $(BSG_PLATFORM_PATH)/libbsg_manycore_runtime.so.1.0
 	rm -f $(BSG_PLATFORM_PATH)/libbsgmc_cuda_legacy_pod_repl.so.1.0
 	rm -f $(BSG_PLATFORM_PATH)/libbsg_manycore_regression.so.1.0
