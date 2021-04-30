@@ -35,7 +35,7 @@ NC=\033[0m
 # This file REQUIRES several variables to be set. They are typically
 # set by the Makefile that includes this makefile..
 # 
-DEFINES    += -UVCS -D_DRAMFS
+DEFINES    += -D_DRAMFS
 INCLUDES   += -I$(LIBRARIES_PATH)
 INCLUDES   += -I$(BSG_PLATFORM_PATH)/software/include
 INCLUDES   += -I$(BSG_PLATFORM_PATH)

@@ -100,6 +100,17 @@ $(DROMAJO_OBJECTS): CXXFLAGS := -std=c++11 -fPIC -Wall -Wno-parentheses -MMD -D_
 $(DROMAJO_OBJECTS): LDFLAGS := -fPIC
 $(DROMAJO_OBJECTS): RV_CXX = $(CXX)
 
+include $(LIBRARIES_PATH)/features/dma/simulation/dramsim3.mk
+include $(LIBRARIES_PATH)/features/dma/simulation/libdmamem.mk
+
+$(LIBRARIES_PATH)/features/dma/simulation/libdmamem.so: CXXFLAGS := $(filter-out -march=%,$(CXXFLAGS))
+$(LIBRARIES_PATH)/features/dma/simulation/libdmamem.so: CXXFLAGS := $(filter-out -mabi=%,$(CXXFLAGS))
+$(LIBRARIES_PATH)/features/dma/simulation/libdmamem.so: CXXFLAGS := $(filter-out -mcmodel=%,$(CXXFLAGS))
+$(LIBRARIES_PATH)/features/dma/simulation/libdmamem.so: CXXFLAGS := $(filter-out -D_DRAMFS,$(CXXFLAGS))
+$(LIBRARIES_PATH)/features/dma/simulation/libdmamem.so: INCLUDES :=
+
+$(LIBRARIES_PATH)/features/dma/simulation/libdramsim3.so: INCLUDES :=
+
 PLATFORM_CXXSOURCES += $(BSG_PLATFORM_PATH)/bsg_manycore_simulator.cpp
 
 PLATFORM_OBJECTS += $(patsubst %cpp,%o,$(PLATFORM_CXXSOURCES))
@@ -114,8 +125,8 @@ $(PLATFORM_OBJECTS): INCLUDES += -I$(VCS_HOME)/linux64/lib/
 $(PLATFORM_OBJECTS): INCLUDES += -I$(BSG_MANYCORE_DIR)/testbenches/dpi/
 $(PLATFORM_OBJECTS): INCLUDES += -I$(BASEJUMP_STL_DIR)/bsg_test/
 $(PLATFORM_OBJECTS): INCLUDES += -I$(BLACKPARROT_DIR)/sdk/dromajo/include
-$(PLATFORM_OBJECTS): CFLAGS   := -std=c11 -fPIC -DVCS -D_GNU_SOURCE -DVERILATOR -D_BSD_SOURCE -D_XOPEN_SOURCE=500 $(INCLUDES)
-$(PLATFORM_OBJECTS): CXXFLAGS := -std=c++11 -fPIC -DVCS -D_GNU_SOURCE -DVERILATOR -D_BSD_SOURCE -D_XOPEN_SOURCE=500 $(INCLUDES)
+$(PLATFORM_OBJECTS): CFLAGS   := -std=c11 -fPIC -DVCS -D_GNU_SOURCE -DVERILATOR -D_BSD_SOURCE -D_XOPEN_SOURCE=500
+$(PLATFORM_OBJECTS): CXXFLAGS := -std=c++11 -fPIC -DVCS -D_GNU_SOURCE -DVERILATOR -D_BSD_SOURCE -D_XOPEN_SOURCE=500
 $(PLATFORM_OBJECTS): LDFLAGS  := -fPIC
 $(PLATFORM_OBJECTS): RV_CXX = $(CXX)
 

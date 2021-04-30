@@ -122,8 +122,12 @@ $(BSG_PLATFORM_PATH)/test.riscv:
 $(BSG_PLATFORM_PATH)/libbsg_manycore_platform.so.1.0: $(DROMAJO_OBJECTS)
 $(BSG_PLATFORM_PATH)/libbsg_manycore_platform.so.1.0: $(PLATFORM_OBJECTS)
 $(BSG_PLATFORM_PATH)/libbsg_manycore_platform.so.1.0: LDFLAGS := -fPIC
+$(BSG_PLATFORM_PATH)/libbsg_manycore_platform.so.1.0: LDFLAGS += -L$(LIBRARIES_PATH)/features/dma/simulation -Wl,-rpath=$(LIBRARIES_PATH)/features/dma/simulation -ldmamem
+$(BSG_PLATFORM_PATH)/libbsg_manycore_platform.so.1.0: $(LIBRARIES_PATH)/features/dma/simulation/libdmamem.so
+$(BSG_PLATFORM_PATH)/libbsg_manycore_platform.so.1.0: LDFLAGS += -L$(LIBRARIES_PATH)/features/dma/simulation -Wl,-rpath=$(LIBRARIES_PATH)/features/dma/simulation -ldramsim3
+$(BSG_PLATFORM_PATH)/libbsg_manycore_platform.so.1.0: $(LIBRARIES_PATH)/features/dma/simulation/libdramsim3.so
 $(BSG_PLATFORM_PATH)/libbsg_manycore_platform.so.1.0:
-	$(CXX) -shared -Wl,-soname,$(basename $(notdir $@)) -o $@ $^ $(LDFLAGS)
+	$(CXX) -shared -Wl,-soname,$(basename $(notdir $@)) -o $@ $(DROMAJO_OBJECTS) $(PLATFORM_OBJECTS) $(LDFLAGS)
 
 $(BSG_PLATFORM_PATH)/libbsg_manycore_platform.so.1: %: %.0
 	ln -sf $@.0 $@
@@ -176,6 +180,8 @@ platform.link.clean:
 	rm -rf *.vcs.log
 	rm -rf vc_hdrs.h
 	rm -rf *.debug *.profile *.saifgen *.exec
+	rm -rf *.elf
+	rm -rf $(BSG_PLATFORM_PATH)/*.riscv
 
 link.clean: platform.link.clean ;
 
