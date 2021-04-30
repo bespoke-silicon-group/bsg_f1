@@ -150,5 +150,6 @@ platform.clean:
 	rm -f $(BSG_PLATFORM_PATH)/libbsg_manycore_regression.a
 	rm -f $(BSG_PLATFORM_PATH)/libbsg_manycore_regression.a.1
 	rm -f $(BSG_PLATFORM_PATH)/libbsg_manycore_platform.so
+	rm -f $(BSG_PLATFORM_PATH)/libbsg_manycore_platform.so.1
 
 libraries.clean: platform.clean
