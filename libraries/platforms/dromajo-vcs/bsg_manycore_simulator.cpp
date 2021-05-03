@@ -76,10 +76,21 @@ bsg_nonsynth_dpi::dpi_manycore<HB_MC_CONFIG_MAX> *dpi;
 // Define invisible library functions
 declare_hb_mc_get_bits
 
+// Advance time
+void advance_time() {
+  std::string mc_dpi = "replicant_tb_top.mc_dpi";
+  void *top = svGetScopeFromName(mc_dpi.c_str());
+  svScope prev;
+  prev = svSetScope(top);
+  bsg_dpi_next();
+  svSetScope(prev);
+}
+
 ////////////////////////////// SimulationWrapper functions //////////////////////////////
 
 SimulationWrapper::SimulationWrapper(){
   root = new std::string("replicant_tb_top");
+  // These are not used since we need them globally
   std::string mc_dpi = *root + ".mc_dpi";
   top = svGetScopeFromName(mc_dpi.c_str());
 }
@@ -112,10 +123,7 @@ void SimulationWrapper::eval(){
   dromajo_set_credits();
 
   // Advance time 1 unit
-  svScope prev;
-  prev = svSetScope(top);
-  bsg_dpi_next();
-  svSetScope(prev);
+  advance_time();
 }
 
 SimulationWrapper::~SimulationWrapper(){
@@ -139,7 +147,7 @@ static int dpi_fifo_drain(bsg_nonsynth_dpi::dpi_manycore<HB_MC_CONFIG_MAX> *dpi,
   int cap = dpi->config[HB_MC_CONFIG_IO_REMOTE_LOAD_CAP];
 
   do {
-    bsg_dpi_next();
+    advance_time();
     switch(type) {
       case HB_MC_FIFO_RX_REQ:
         err = dpi->rx_req(*pkt);
@@ -154,12 +162,13 @@ static int dpi_fifo_drain(bsg_nonsynth_dpi::dpi_manycore<HB_MC_CONFIG_MAX> *dpi,
 
     if (err == BSG_NONSYNTH_DPI_SUCCESS)
       drains++;
-  } while ((err == BSG_NONSYNTH_DPI_NOT_WINDOW | err == BSG_NONSYNTH_DPI_SUCCESS)
+  } while ((err == BSG_NONSYNTH_DPI_NOT_WINDOW || err == BSG_NONSYNTH_DPI_SUCCESS)
           && drains <= cap);
 
-  if (drains != cap)
+  if (drains == cap) {
     printf("[BSG_ERROR] Failed to drain FIFO\n");
     return HB_MC_FAIL;
+  }
 
   return HB_MC_SUCCESS;
 }
@@ -181,7 +190,7 @@ static void dpi_clean(bsg_nonsynth_dpi::dpi_manycore<HB_MC_CONFIG_MAX> *dpi) {
  * @returns success if initialized correctly
  */
 static int dpi_init(bsg_nonsynth_dpi::dpi_manycore<HB_MC_CONFIG_MAX> *dpi, std::string hierarchy) {
-  bsg_dpi_next();
+  advance_time();
 
   dpi = new bsg_nonsynth_dpi::dpi_manycore<HB_MC_CONFIG_MAX>(hierarchy + ".mc_dpi");
 
@@ -196,23 +205,6 @@ static int dpi_init(bsg_nonsynth_dpi::dpi_manycore<HB_MC_CONFIG_MAX> *dpi, std::
   if (err != HB_MC_SUCCESS) {
     dpi_clean(dpi);
     return err;
-  }
-
-  return HB_MC_SUCCESS;
-}
-
-/*
- * dpi_wait_for_reset
- * Ensures that the manycore hardware is reset
- * @params[in] dpi - Pointer to the manycore DPI object
- */
-static int dpi_wait_for_reset(bsg_nonsynth_dpi::dpi_manycore<HB_MC_CONFIG_MAX> *dpi) {
-  bool done;
-  dpi->reset_is_done(done);
-
-  while (!done) {
-    bsg_dpi_next();
-    dpi->reset_is_done(done);
   }
 
   return HB_MC_SUCCESS;
@@ -317,6 +309,14 @@ void dromajo_transmit_packet() {
           idx = packet.request.addr;
           data = dpi->config[idx];
         }
+        else if (packet.request.addr == 0x200) {
+          bool done;
+          dpi->reset_is_done(done);
+          if (done)
+            data = 1;
+          else
+            data = 0;
+        }
         else
           printf("[BSG_ERROR] Host EPA not mapped\n");
 
@@ -403,7 +403,7 @@ void dromajo_set_credits() {
  * @params[in] args - Pointer to a character array that holds the arguments
  * @returns the number of arguments
  */
-int get_argc(char * args){
+static int get_argc(char * args){
         char *cur = args, prev=' ';
         int count = 1;
         while(*cur != '\0'){
@@ -424,8 +424,7 @@ int get_argc(char * args){
  * @params[in] argv - Pointer to an array of strings that will hold the different
  * arguments
  */
-static
-void get_argv(char * args, int argc, char **argv){
+static void get_argv(char * args, int argc, char **argv){
         int count = 0;
         char *cur = args, prev=' ';
 
@@ -490,14 +489,7 @@ int vcs_main(int argc, char **argv) {
     return HB_MC_FAIL;
   }
 
-  // Wait for reset to be done
-  err = dpi_wait_for_reset(dpi);
-  if (err != HB_MC_SUCCESS) {
-    dpi_clean(dpi);
-    delete sim;
-    printf("[BSG_ERROR] Failed to wait for reset!\nExiting...\n");
-    return HB_MC_FAIL;
-  }
+  printf("[BSG_INFO] DPI Initialized!\n");
 
   while(1)
     sim->eval();
@@ -512,17 +504,19 @@ int vcs_main(int argc, char **argv) {
  * @params[in] args - A character array that holds the space-separated
  * arguments to the function
  */
-void cosim_main(uint32_t *exit_code, char *args) {
-        // We aren't passed command line arguments directly so we parse them
-        // from *args. args is a string from VCS - to pass a string of arguments
-        // to args, pass c_args to VCS as follows: +c_args="<space separated
-        // list of args>"
-        int argc = get_argc(args);
-        char *argv[argc];
-        get_argv(args, argc, argv);
+extern "C" {
+  void cosim_main(uint32_t *exit_code, char *args) {
+          // We aren't passed command line arguments directly so we parse them
+          // from *args. args is a string from VCS - to pass a string of arguments
+          // to args, pass c_args to VCS as follows: +c_args="<space separated
+          // list of args>"
+          int argc = get_argc(args);
+          char *argv[argc];
+          get_argv(args, argc, argv);
 
-        int rc = vcs_main(argc, argv);
-        *exit_code = rc;
-        bsg_pr_test_pass_fail(rc == HB_MC_SUCCESS);
-        return;
+          int rc = vcs_main(argc, argv);
+          *exit_code = rc;
+          bsg_pr_test_pass_fail(rc == HB_MC_SUCCESS);
+          return;
+  }
 }
