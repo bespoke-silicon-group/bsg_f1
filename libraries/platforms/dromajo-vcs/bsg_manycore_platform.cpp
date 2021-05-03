@@ -310,6 +310,20 @@ int hb_mc_platform_log_disable(hb_mc_manycore_t *mc) {
  * @return HB_MC_SUCCESS on success. Otherwise an error code defined in bsg_manycore_errno.h.
  */        
 int hb_mc_platform_wait_reset_done(hb_mc_manycore_t *mc) {
-  // Reset is guaranteed to be complete before program starts by the simulation wrapper
-  return HB_MC_SUCCESS;
+  hb_mc_packet_t req_pkt, resp_pkt;
+  int err;
+
+  req_pkt.request.x_src = 0;
+  req_pkt.request.y_src = 1;
+  req_pkt.request.x_dst = 0;
+  req_pkt.request.y_dst = 0;
+  req_pkt.request.op_v2 = HB_MC_PACKET_OP_REMOTE_LOAD;
+  req_pkt.request.payload = 0;
+  req_pkt.request.reg_id = 0;
+  req_pkt.request.addr = 0x200;
+
+  do {
+    bp_hb_write_to_manycore_bridge(&req_pkt);
+    err = bp_hb_read_from_manycore_bridge(&resp_pkt, HB_MC_FIFO_RX_RSP);
+  } while((err != HB_MC_SUCCESS) && (resp_pkt.response.data == 1));
 }
