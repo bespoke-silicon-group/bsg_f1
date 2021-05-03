@@ -143,7 +143,7 @@ VSOURCES += $(BASEJUMP_STL_DIR)/bsg_test/bsg_nonsynth_dpi_cycle_counter.v
 # Top-level module name
 BSG_DESIGN_TOP := replicant_tb_top
 
-VSOURCES += $(LIBRARIES_PATH)/platforms/bigblade-vcs/hardware/dpi_top.sv
+VSOURCES += $(LIBRARIES_PATH)/platforms/dromajo-vcs/hardware/dpi_top.sv
 
 VINCLUDES += $(BSG_PLATFORM_PATH)/hardware
 VINCLUDES += $(BSG_PLATFORM_PATH)
