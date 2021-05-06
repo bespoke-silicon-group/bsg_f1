@@ -51,7 +51,6 @@ void __init_args(void) {
 
     uint32_t data = resp_pkt.response.data;
     if (data == 0xFFFFFFFF) {
-      bsg_pr_info("Argument retrieval complete!\n");
       break;
     }
     else {
@@ -80,14 +79,15 @@ void __init_args(void) {
   char *args[_argc];
   char c = '\0';
   int count = 0;
-  while (count != _argc) {
-    if ((c == '\0') && (c != *bufptr)) {
-      args[count] = bufptr;
-      count++;
+  if (_argc != 0) {
+    while (count != _argc) {
+      if ((c == '\0') && (c != *bufptr)) {
+        args[count] = bufptr;
+        count++;
+      }
+      c = *bufptr;
+      bufptr++;
     }
-    c = *bufptr;
-    bufptr++;
-  }
   _argv = args;
-
+  }
 }

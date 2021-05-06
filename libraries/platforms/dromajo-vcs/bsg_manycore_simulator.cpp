@@ -29,23 +29,6 @@
 // differences in simulators.
 
 #include <bsg_manycore_simulator.hpp>
-#include <bsg_nonsynth_dpi_manycore.hpp>
-#include <bsg_nonsynth_dpi_errno.hpp>
-#include <bsg_nonsynth_dpi_cycle_counter.hpp>
-#include <bsg_nonsynth_dpi_clock_gen.hpp>
-
-#include <bsg_manycore.h>
-#include <bsg_manycore_config.h>
-
-#include <dromajo_cosim.h>
-#include <dromajo_manycore.h>
-
-#include <stdlib.h>
-#include <stdio.h>
-#include <stdint.h>
-#include <unistd.h>
-#include <bsg_manycore_regression.h>
-
 #include <svdpi.h>
 // We use __m128i so that we can pass a 128-bit type between Verilog
 // and C.
@@ -56,43 +39,43 @@ extern "C" {
   void bsg_dpi_next();
 }
 
-// Dromajo specifics
-dromajo_cosim_state_t *dromajo_state;
-dromajo_cosim_state_t* dromajo_init();
-bool dromajo_step();
-void dromajo_transmit_packet();
-void dromajo_receive_packet();
-void dromajo_set_credits();
-
 // Global variables to store arguments
 int _argc;
 char **_argv;
 static int char_index = 0;
 int idx = 0;
 
-// DPI object
-bsg_nonsynth_dpi::dpi_manycore<HB_MC_CONFIG_MAX> *dpi;
+////////////////////////////// SimulationWrapper functions //////////////////////////////
 
-// Define invisible library functions
-declare_hb_mc_get_bits
+// Constructor
+SimulationWrapper::SimulationWrapper(){
+  root = new std::string("replicant_tb_top");
+  std::string mc_dpi = *root + ".mc_dpi";
+  top = svGetScopeFromName(mc_dpi.c_str());
+  dpi = new bsg_nonsynth_dpi::dpi_manycore<HB_MC_CONFIG_MAX>(mc_dpi);
 
-// Advance time
-void advance_time() {
-  std::string mc_dpi = "replicant_tb_top.mc_dpi";
-  void *top = svGetScopeFromName(mc_dpi.c_str());
+  // Initialize DPI and Dromajo
+  dromajo_init();
+  dpi_init();
+
+  if ((!dromajo) || (!dpi)) {
+    bsg_pr_err("Failed to initialize DPI pointer\n");
+  }
+}
+
+// Destructor
+SimulationWrapper::~SimulationWrapper(){
+  dpi_cleanup();
+  dromajo_cosim_fini(dromajo);
+  this->top = nullptr;
+}
+
+// Causes time to proceed by 1 unit
+void SimulationWrapper::advance_time() {
   svScope prev;
   prev = svSetScope(top);
   bsg_dpi_next();
   svSetScope(prev);
-}
-
-////////////////////////////// SimulationWrapper functions //////////////////////////////
-
-SimulationWrapper::SimulationWrapper(){
-  root = new std::string("replicant_tb_top");
-  // These are not used since we need them globally
-  std::string mc_dpi = *root + ".mc_dpi";
-  top = svGetScopeFromName(mc_dpi.c_str());
 }
 
 // Does nothing. Turning on/off assertions is only supported in
@@ -105,32 +88,14 @@ std::string SimulationWrapper::getRoot(){
   return *root;
 }
 
-void SimulationWrapper::eval(){
-  // Execute one instruction on Dromajo
-  if (!dromajo_step()) {
-    // Fixme: Dromajo could also terminate due to premature errors.
-    // Use the test outputs to detect PASS/FAIL
-    printf("Dromajo Execution Complete!\nExiting...\n");
-    dromajo_cosim_fini(dromajo_state);
-    exit(0);
-  }
-
-  // Poll for packets to be transmitted
-  dromajo_transmit_packet();
-  // Poll for packets to be received
-  dromajo_receive_packet();
-  // Update the credits in dromajo
-  dromajo_set_credits();
-
-  // Advance time 1 unit
-  advance_time();
+/*
+ * dpi_cleanup
+ * Destroys the pointer to the manycore DPI object
+ * @params[in] dpi - Pointer to the manycore DPI object
+ */
+void SimulationWrapper::dpi_cleanup() {
+  delete dpi;
 }
-
-SimulationWrapper::~SimulationWrapper(){
-  this->top = nullptr;
-}
-
-////////////////////////////// DPI helper functions //////////////////////////////
 
 /*
  * dpi_fifo_drain
@@ -140,7 +105,7 @@ SimulationWrapper::~SimulationWrapper(){
  * @param[in] type - Manycore FIFO type
  * @returns success if all the FIFOs were drained correctly
  */
-static int dpi_fifo_drain(bsg_nonsynth_dpi::dpi_manycore<HB_MC_CONFIG_MAX> *dpi, hb_mc_fifo_rx_t type) {
+int SimulationWrapper::dpi_fifo_drain(hb_mc_fifo_rx_t type) {
   __m128i *pkt;
 
   int err, drains = 0;
@@ -148,6 +113,7 @@ static int dpi_fifo_drain(bsg_nonsynth_dpi::dpi_manycore<HB_MC_CONFIG_MAX> *dpi,
 
   do {
     advance_time();
+
     switch(type) {
       case HB_MC_FIFO_RX_REQ:
         err = dpi->rx_req(*pkt);
@@ -156,7 +122,7 @@ static int dpi_fifo_drain(bsg_nonsynth_dpi::dpi_manycore<HB_MC_CONFIG_MAX> *dpi,
         err = dpi->rx_rsp(*pkt);
       break;
       default:
-        printf("[BSG_ERROR] Unknown FIFO type\n");
+        bsg_pr_err("Unknown FIFO type\n");
         return HB_MC_FAIL;
     }
 
@@ -166,20 +132,11 @@ static int dpi_fifo_drain(bsg_nonsynth_dpi::dpi_manycore<HB_MC_CONFIG_MAX> *dpi,
           && drains <= cap);
 
   if (drains == cap) {
-    printf("[BSG_ERROR] Failed to drain FIFO\n");
+    bsg_pr_err("Failed to drain FIFO\n");
     return HB_MC_FAIL;
   }
 
   return HB_MC_SUCCESS;
-}
-
-/*
- * dpi_clean
- * Destroys the pointer to the manycore DPI object
- * @params[in] dpi - Pointer to the manycore DPI object
- */
-static void dpi_clean(bsg_nonsynth_dpi::dpi_manycore<HB_MC_CONFIG_MAX> *dpi) {
-  delete dpi;
 }
 
 /*
@@ -189,53 +146,49 @@ static void dpi_clean(bsg_nonsynth_dpi::dpi_manycore<HB_MC_CONFIG_MAX> *dpi) {
  * @params[in] hierarchy - A C++ string that holds the manycore hierarchy
  * @returns success if initialized correctly
  */
-static int dpi_init(bsg_nonsynth_dpi::dpi_manycore<HB_MC_CONFIG_MAX> *dpi, std::string hierarchy) {
+int SimulationWrapper::dpi_init() {
   advance_time();
 
-  dpi = new bsg_nonsynth_dpi::dpi_manycore<HB_MC_CONFIG_MAX>(hierarchy + ".mc_dpi");
-
   int err;
-  err = dpi_fifo_drain(dpi, HB_MC_FIFO_RX_REQ);
+
+  err = dpi_fifo_drain(HB_MC_FIFO_RX_REQ);
   if (err != HB_MC_SUCCESS) {
-    dpi_clean(dpi);
+    dpi_cleanup();
     return err;
   }
 
-  err = dpi_fifo_drain(dpi, HB_MC_FIFO_RX_RSP);
+  err = dpi_fifo_drain(HB_MC_FIFO_RX_RSP);
   if (err != HB_MC_SUCCESS) {
-    dpi_clean(dpi);
+    dpi_cleanup();
     return err;
   }
 
   return HB_MC_SUCCESS;
 }
 
-////////////////////////////// Dromajo helper functions //////////////////////////////
-
 /*
  * dromajo_init
  * Initializes dromajo with the correct command-line arguments
  * @returns a pointer to a dromajo_cosim_state_t object
  */
-dromajo_cosim_state_t* dromajo_init() {
-  dromajo_cosim_state_t *dromajo_state;
+int SimulationWrapper::dromajo_init() {
+  char dromajo_str[50];
+  char host_str[50];
+  char manycore_str[50];
+  char prog_str[50];
 
-  char dromajo[50];
-  sprintf(dromajo, "dromajo");
+  sprintf(dromajo_str, "dromajo");
+  sprintf(host_str, "--host");
+  sprintf(manycore_str, "--manycore");
+  sprintf(prog_str, "test.elf");
 
-  char host[50];
-  sprintf(host, "--host");
-
-  char manycore[50];
-  sprintf(manycore, "--manycore");
-
-  char progname[50];
-  sprintf(progname, "test.elf");
-
-  char* argv[] = {dromajo, host, manycore, progname};
-  dromajo_state = dromajo_cosim_init(4, argv);
-
-  return dromajo_state;
+  char* argv[] = {dromajo_str, host_str, manycore_str, prog_str};
+  dromajo = dromajo_cosim_init(4, argv);
+  if (!dromajo) {
+    bsg_pr_err("Failed to initialize Dromajo!\n");
+    return HB_MC_FAIL;
+  }
+  return HB_MC_SUCCESS;
 }
 
 /*
@@ -243,9 +196,9 @@ dromajo_cosim_state_t* dromajo_init() {
  * Executes 1 instruction in Dromajo
  * @returns true if execution is incomplete and/or without errors
  */
-bool dromajo_step() {
+bool SimulationWrapper::dromajo_step() {
   // Execute dromajo with verbose mode on
-  int err = dromajo_cosim_step(dromajo_state, 0, 0, 0, 0, 0, false, true);
+  int err = dromajo_cosim_step(dromajo, 0, 0, 0, 0, 0, false, false);
   if (err != 0)
     return false;
   else
@@ -256,37 +209,41 @@ bool dromajo_step() {
  * dromajo_transmit_packet
  * Fetches data from the Dromajo->Manycore FIFO and pushes it into the DPI FIFO
  * to send packets to the manycore
+ * @returns success on succesful transmission
  */
-void dromajo_transmit_packet() {
-  hb_mc_packet_t packet, host_resp_packet;
+int SimulationWrapper::dromajo_transmit_packet() {
+  hb_mc_packet_t dromajo_to_mc_packet, host_to_dromajo_packet;
   int err;
   __m128i *pkt;
 
-  // Check if FIFO is full and hence ready to transmit
+  // Check if FIFO has an element and hence ready to transmit
   mc_fifo_type_t type = FIFO_HOST_TO_MC_REQ;
-  bool is_full = mc_is_fifo_full(type);
+  bool is_empty = mc_is_fifo_empty(type);
 
-  if (is_full) {
+  if (!is_empty) {
     // Read the FIFO head pointer for all 32-bit FIFOs
-    packet.words[0] = host_to_mc_req_fifo->fifo[0].front();
-    packet.words[1] = host_to_mc_req_fifo->fifo[1].front();
-    packet.words[2] = host_to_mc_req_fifo->fifo[2].front();
-    packet.words[3] = host_to_mc_req_fifo->fifo[3].front();
+    dromajo_to_mc_packet.words[0] = host_to_mc_req_fifo->fifo[0].front();
+    dromajo_to_mc_packet.words[1] = host_to_mc_req_fifo->fifo[1].front();
+    dromajo_to_mc_packet.words[2] = host_to_mc_req_fifo->fifo[2].front();
+    dromajo_to_mc_packet.words[3] = host_to_mc_req_fifo->fifo[3].front();
 
     // Intercept packets that are for the host and generate appropriate responses
-    if ((packet.request.x_dst == 0) && (packet.request.y_dst == 0)) {
-      host_resp_packet.response.x_dst = packet.request.x_src;
-      host_resp_packet.response.y_dst = packet.request.y_src;
-      host_resp_packet.response.load_id = 0;
-      if (packet.request.op_v2 == HB_MC_PACKET_OP_REMOTE_LOAD) {
-        host_resp_packet.response.op = packet.request.op_v2;
-        idx = packet.request.addr;
+    if ((dromajo_to_mc_packet.request.x_dst == 0) && (dromajo_to_mc_packet.request.y_dst == 0)) {
+      host_to_dromajo_packet.response.x_dst = dromajo_to_mc_packet.request.x_src;
+      host_to_dromajo_packet.response.y_dst = dromajo_to_mc_packet.request.y_src;
+      host_to_dromajo_packet.response.load_id = 0;
+
+      if (dromajo_to_mc_packet.request.op_v2 == HB_MC_PACKET_OP_REMOTE_LOAD) {
+        host_to_dromajo_packet.response.op = dromajo_to_mc_packet.request.op_v2;
+        uint32_t idx = dromajo_to_mc_packet.request.addr;
         uint32_t data = 0;
+
         // If EPA maps to reading arguments
-        if (packet.request.addr >= 0 && packet.request.addr <= 0xFF) {
+        if (dromajo_to_mc_packet.request.addr >= 0 && dromajo_to_mc_packet.request.addr <= 0xFF) {
           int num_characters = 0;
-          // If all arguments have been read, send this finish code
-          if (idx == _argc) {
+          // If all arguments have been read or there are no arguments to read
+          // send a finish code
+          if ((idx == _argc) || (_argc == 0)) {
             data = 0xFFFFFFFF;
           }
           else {
@@ -304,12 +261,17 @@ void dromajo_transmit_packet() {
             }
           }
         }
+
         // Dromajo/BlackParrot wants to read the config
-        else if (packet.request.addr >= 0x100 && packet.request.addr <= 0x1FF) {
-          idx = packet.request.addr;
-          data = dpi->config[idx];
+        else if (dromajo_to_mc_packet.request.addr >= 0x100 && dromajo_to_mc_packet.request.addr <= 0x1FF) {
+          idx = dromajo_to_mc_packet.request.addr - 0x100;
+          if (idx <= HB_MC_CONFIG_MAX)
+            data = dpi->config[idx];
+          else
+            data = 0xFFFFFFFF;
         }
-        else if (packet.request.addr == 0x200) {
+
+        else if (dromajo_to_mc_packet.request.addr == 0x200) {
           bool done;
           dpi->reset_is_done(done);
           if (done)
@@ -317,33 +279,56 @@ void dromajo_transmit_packet() {
           else
             data = 0;
         }
-        else
-          printf("[BSG_ERROR] Host EPA not mapped\n");
 
-        host_resp_packet.response.data = data;
+        else {
+          bsg_pr_err("Host EPA not mapped\n");
+          return HB_MC_FAIL;
+        }
+
+        host_to_dromajo_packet.response.data = data;
         // Inject the response packet into manycore response FIFO
         // Pop the request FIFO
         for(int j = 0; j < 4; j++) {
-          mc_to_host_resp_fifo->fifo[j].push(host_resp_packet.words[j]);
+          mc_to_host_resp_fifo->fifo[j].push(host_to_dromajo_packet.words[j]);
           host_to_mc_req_fifo->fifo[j].pop();
         }
       }
-      else
-        printf("[BSG_ERROR] Operations other than loads are not implemented for the host\n");
+      else {
+        bsg_pr_err("Operations other than loads are not implemented for the host\n");
+        return HB_MC_FAIL;
+      }
     }
     else {
-      pkt = reinterpret_cast<__m128i *>(&packet);
+      pkt = reinterpret_cast<__m128i *>(&dromajo_to_mc_packet);
 
-      // Try to transmit until you actually can
-      err = dpi->tx_req(*pkt);
+      // Attempt packet transmission
+      // Since we trigger a call to the transmit FIFOs only when the Dromajo
+      // FIFOs are full, we need to wait until the DPI FIFOs are ready to receive
+      // before advancing to the next operation. This can prevent filling up of the
+      // FIFOs. However, not doing this can help in identifying situations that might
+      // create backpressure in actual hardware and provision for it.
+      do {
+        advance_time();
+        err = dpi->tx_req(*pkt);
+      } while (err != BSG_NONSYNTH_DPI_SUCCESS &&
+          (err == BSG_NONSYNTH_DPI_NO_CREDITS ||
+           err == BSG_NONSYNTH_DPI_NOT_WINDOW ||
+           err == BSG_NONSYNTH_DPI_BUSY       ||
+           err == BSG_NONSYNTH_DPI_NOT_READY));
 
       // Pop the FIFO once transmitted
       if (err == BSG_NONSYNTH_DPI_SUCCESS) {
         for (int i = 0;i < 4; i++)
           host_to_mc_req_fifo->fifo[i].pop();
       }
+      else {
+        bsg_pr_err("Packet transmission failed\n");
+        return HB_MC_FAIL;
+      }
     }
   }
+
+  return HB_MC_SUCCESS;
 }
 
 /*
@@ -351,32 +336,53 @@ void dromajo_transmit_packet() {
  * Receives packets from the DPI FIFOs and pushes the data into the
  * manycore request and response FIFOs in Dromajo
  */
-void dromajo_receive_packet() {
-  hb_mc_packet_t *req_packet, *resp_packet;
+int SimulationWrapper::dromajo_receive_packet() {
+  hb_mc_packet_t *mc_to_dromajo_req_packet, *mc_to_dromajo_resp_packet;
   int err;
-  __m128i *pkt;
+  __m128i pkt;
 
   // Read from the manycore request FIFO
-  err = dpi->rx_req(*pkt);
-  req_packet = reinterpret_cast<hb_mc_packet_t *>(pkt);
+  // At every time step we are polling the request FIFO to see if there
+  // is a packet. If there is no packet (i.e err == BSG_NONSYNTH_NOT_VALID)
+  // we must move on
+  do {
+    advance_time();
+    err = dpi->rx_req(pkt);
+  } while (err != BSG_NONSYNTH_DPI_SUCCESS    &&
+          (err == BSG_NONSYNTH_DPI_NOT_WINDOW ||
+           err == BSG_NONSYNTH_DPI_BUSY       ));
 
-  // Push to host FIFO if valid
   if (err == BSG_NONSYNTH_DPI_SUCCESS) {
+    mc_to_dromajo_req_packet = reinterpret_cast<hb_mc_packet_t *>(&pkt);
     for (int i = 0; i < 4; i++) {
-      mc_to_host_req_fifo->fifo[i].push(req_packet->words[i]);
+      mc_to_host_req_fifo->fifo[i].push(mc_to_dromajo_req_packet->words[i]);
     }
+  }
+  else if (err != BSG_NONSYNTH_DPI_NOT_VALID){
+    bsg_pr_err("Failed to receive manycore request packet");
+    return HB_MC_FAIL;
   }
 
   // Read from the manycore response FIFO
-  err = dpi->rx_rsp(*pkt);
-  resp_packet = reinterpret_cast<hb_mc_packet_t *>(pkt);
+  do {
+    advance_time();
+    err = dpi->rx_rsp(pkt);
+  } while (err != BSG_NONSYNTH_DPI_SUCCESS    &&
+          (err == BSG_NONSYNTH_DPI_NOT_WINDOW ||
+           err == BSG_NONSYNTH_DPI_BUSY       ));
 
-  // Push to host FIFO if valid
   if (err == BSG_NONSYNTH_DPI_SUCCESS) {
+    mc_to_dromajo_resp_packet = reinterpret_cast<hb_mc_packet_t *>(&pkt);
     for (int i = 0; i < 4; i++) {
-      mc_to_host_resp_fifo->fifo[i].push(resp_packet->words[i]);
+      mc_to_host_resp_fifo->fifo[i].push(mc_to_dromajo_resp_packet->words[i]);
     }
   }
+  else if (err != BSG_NONSYNTH_DPI_NOT_VALID) {
+    bsg_pr_err("Failed to receive manycore response packet");
+    return HB_MC_FAIL;
+  }
+
+  return HB_MC_SUCCESS;
 }
 
 /*
@@ -384,15 +390,55 @@ void dromajo_receive_packet() {
  * Polls the hardware for credit information and sets the credits info
  * for the Dromajo->Manycore request FIFO in dromajo
  */
-void dromajo_set_credits() {
+int SimulationWrapper::dromajo_set_credits() {
   int credits;
-  int res = dpi->get_credits(credits);
-  if (res == BSG_NONSYNTH_DPI_SUCCESS) {
+  int err = dpi->get_credits(credits);
+  if (err == BSG_NONSYNTH_DPI_SUCCESS) {
     if (credits < 0)
-      printf("[BSG_WARN] Warning! Credit value is negative!\n");
+      bsg_pr_warn("Credit value is negative!\n");
 
     host_to_mc_req_fifo->credits = credits;
   }
+  else {
+    bsg_pr_err(bsg_nonsynth_dpi_strerror(err));
+    return HB_MC_FAIL;
+  }
+
+  return HB_MC_SUCCESS;
+}
+
+int SimulationWrapper::eval(){
+  // Execute one instruction on Dromajo
+  if (!dromajo_step()) {
+    // Fixme: Dromajo could also terminate due to premature errors.
+    // Use the test outputs to detect PASS/FAIL
+    bsg_pr_info("Dromajo Execution Complete!\nExiting...\n");
+    dromajo_cosim_fini(dromajo);
+    return HB_MC_SUCCESS;
+  }
+
+  int err;
+  // Poll for packets to be transmitted
+  bsg_pr_dbg("Checking for packets to transmit\n");
+  err = dromajo_transmit_packet();
+  if (err != HB_MC_SUCCESS)
+    return err;
+
+  // Poll for packets to be received
+  bsg_pr_dbg("Checking for packets to receive\n");
+  err = dromajo_receive_packet();
+  if (err != HB_MC_SUCCESS)
+    return err;
+
+  // Update the credits in dromajo
+  bsg_pr_dbg("Checking for credits\n");
+  err = dromajo_set_credits();
+  if (err != HB_MC_SUCCESS)
+    return err;
+
+  // Advance time 1 unit
+  advance_time();
+  return HB_MC_SUCCESS;
 }
 
 ////////////////////////////// Interacting with VCS //////////////////////////////
@@ -471,30 +517,19 @@ int vcs_main(int argc, char **argv) {
   _argc = argc;
   _argv = argv;
 
-
-  // Initialize Dromajo
-  dromajo_state = dromajo_init();
-
-  // Create an object of the simulation wrapper
-  SimulationWrapper *sim = new SimulationWrapper();
-  std::string hierarchy = sim->getRoot();
-
-  int err;
-
-  // Initialize DPI
-  err = dpi_init(dpi, hierarchy);
-  if (err != HB_MC_SUCCESS) {
-    delete sim;
-    printf("[BSG_ERROR] Failed to initialize DPI!\nExiting...\n");
+  // Initialize Host
+  SimulationWrapper *host = new SimulationWrapper();
+  if (!host) {
+    bsg_pr_err("Could not initialize host!\n");
     return HB_MC_FAIL;
   }
 
-  printf("[BSG_INFO] DPI Initialized!\n");
+  int err;
+  do {
+    err = host->eval();
+  } while (err == HB_MC_SUCCESS);
 
-  while(1)
-    sim->eval();
-
-  return HB_MC_SUCCESS;
+  return err;
 }
 
 /*

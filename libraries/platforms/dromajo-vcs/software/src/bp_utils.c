@@ -107,15 +107,15 @@ int bp_hb_read_from_manycore_bridge(hb_mc_packet_t *pkt, hb_mc_fifo_rx_t type) {
 
 			// Read the value
 			uint32_t *mc_to_bp_req_fifo_addr = (uint32_t *) (MC_BASE_ADDR + MC_TO_BP_REQ_FIFO_ADDR);
-			uint32_t read_status = 0xFFFF;
+			uint32_t read_status = 0xFFFFFFFF;
 			for (int i = 0; i < 4; i++) {
 				pkt->words[i] = *mc_to_bp_req_fifo_addr;
 				read_status &= pkt->words[i];
 				mc_to_bp_req_fifo_addr++;
 			}
 
-			// If all packets are 0xFFFF --> there is something wrong
-			if (read_status == 0xFFFF)
+			// If all packets are 0xFFFFFFFF --> there is something wrong
+			if (read_status == 0xFFFFFFFF)
 				return HB_MC_FAIL;
 		}
 		break;
@@ -128,15 +128,15 @@ int bp_hb_read_from_manycore_bridge(hb_mc_packet_t *pkt, hb_mc_fifo_rx_t type) {
 
 			// Read the value
 			uint32_t *mc_to_bp_resp_fifo_addr = (uint32_t *) (MC_BASE_ADDR + MC_TO_BP_RESP_FIFO_ADDR);
-			uint32_t read_status = 0xFFFF;
+			uint32_t read_status = 0xFFFFFFFF;
 			for (int i = 0; i < 4; i++) {
 				pkt->words[i] = *mc_to_bp_resp_fifo_addr;
 				read_status &= pkt->words[i];
 				mc_to_bp_resp_fifo_addr++;
 			}
 
-			// If all packets are 0xFFFF --> there is something wrong
-			if (read_status == 0xFFFF)
+			// If all packets are 0xFFFFFFFF --> there is something wrong
+			if (read_status == 0xFFFFFFFF)
 				return HB_MC_FAIL;
 		}
 		break;

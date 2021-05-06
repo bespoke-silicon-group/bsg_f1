@@ -193,7 +193,12 @@ int hb_mc_platform_get_config_at(hb_mc_manycore_t *mc, unsigned int idx, hb_mc_c
     int err = bp_hb_read_from_manycore_bridge(&resp_pkt, HB_MC_FIFO_RX_RSP);
     if (err != 0)
       return HB_MC_FAIL;
-    *config = resp_pkt.response.data;
+
+    uint32_t data = resp_pkt.response.data;
+    if (data != 0xFFFFFFFF)
+      *config = data;
+    else
+      *config = 0;
 
     return HB_MC_SUCCESS;
   }
@@ -312,6 +317,7 @@ int hb_mc_platform_log_disable(hb_mc_manycore_t *mc) {
 int hb_mc_platform_wait_reset_done(hb_mc_manycore_t *mc) {
   hb_mc_packet_t req_pkt, resp_pkt;
   int err;
+  uint32_t data;
 
   req_pkt.request.x_src = 0;
   req_pkt.request.y_src = 1;
@@ -325,5 +331,11 @@ int hb_mc_platform_wait_reset_done(hb_mc_manycore_t *mc) {
   do {
     bp_hb_write_to_manycore_bridge(&req_pkt);
     err = bp_hb_read_from_manycore_bridge(&resp_pkt, HB_MC_FIFO_RX_RSP);
-  } while((err != HB_MC_SUCCESS) && (resp_pkt.response.data == 1));
+    data = resp_pkt.response.data;
+  } while((err != HB_MC_SUCCESS) && (data != 1));
+
+  if (data == 0)
+    return HB_MC_FAIL;
+
+  return HB_MC_SUCCESS;
 }
