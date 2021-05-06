@@ -98,7 +98,7 @@ $(DROMAJO_OBJECTS): INCLUDES := -I$(DROMAJO_DIR)/include
 $(DROMAJO_OBJECTS): INCLUDES += -I$(BSG_PLATFORM_PATH)/software/include/dromajo
 $(DROMAJO_OBJECTS): CXXFLAGS := -std=c++11 -fPIC -Wall -Wno-parentheses -MMD -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -D_GNU_SOURCE  -D__STDC_FORMAT_MACROS -DFIFO_MAX_ELEMENTS=$(BSG_MACHINE_IO_EP_CREDITS) -std=gnu++11
 $(DROMAJO_OBJECTS): LDFLAGS := -fPIC
-$(DROMAJO_OBJECTS): RV_CXX = $(CXX)
+$(DROMAJO_OBJECTS): CXX = g++
 
 include $(LIBRARIES_PATH)/features/dma/simulation/dramsim3.mk
 include $(LIBRARIES_PATH)/features/dma/simulation/libdmamem.mk
@@ -127,7 +127,7 @@ $(PLATFORM_OBJECTS): INCLUDES += -I$(BLACKPARROT_DIR)/sdk/dromajo/include
 $(PLATFORM_OBJECTS): CFLAGS   := -std=c11 -fPIC -DVCS -D_GNU_SOURCE -DVERILATOR -D_BSD_SOURCE -D_XOPEN_SOURCE=500
 $(PLATFORM_OBJECTS): CXXFLAGS := -std=c++11 -fPIC -DVCS -D_GNU_SOURCE -DVERILATOR -D_BSD_SOURCE -D_XOPEN_SOURCE=500
 $(PLATFORM_OBJECTS): LDFLAGS  := -fPIC
-$(PLATFORM_OBJECTS): RV_CXX = $(CXX)
+$(PLATFORM_OBJECTS): CXX = g++
 
 # Mirror the extensions linux installation in /usr/lib provides so
 # that we can use -lbsg_manycore_runtime
