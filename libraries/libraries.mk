@@ -131,8 +131,9 @@ $(LIB_STRICT_OBJECTS): CXXFLAGS += -Wno-unused-but-set-variable
 
 ifdef __NEWLIB
 LIB_OBJECTS += $(patsubst %S,%o,$(LIB_SSOURCES))
+$(BSG_PLATFORM_PATH)/libbsg_manycore_runtime.so.1.0: LDFLAGS :=
 $(BSG_PLATFORM_PATH)/libbsg_manycore_runtime.so.1.0: $(LIB_OBJECTS)
-	$(RV_AR) -rcs $@ $^
+	$(RV_AR) -rcs $@ $(LIB_OBJECTS) $(DMA_FEATURE_OBJECTS)
 else
 $(BSG_PLATFORM_PATH)/libbsg_manycore_runtime.so.1.0: LD = $(CXX)
 $(BSG_PLATFORM_PATH)/libbsg_manycore_runtime.so.1.0: $(LIB_OBJECTS)
@@ -143,8 +144,9 @@ $(BSG_PLATFORM_PATH)/libbsgmc_cuda_legacy_pod_repl.so.1.0: LDFLAGS  :=
 $(BSG_PLATFORM_PATH)/libbsgmc_cuda_legacy_pod_repl.so.1.0: INCLUDES :=
 
 ifdef __NEWLIB
+$(BSG_PLATFORM_PATH)/libbsgmc_cuda_legacy_pod_repl.so.1.0: LDFLAGS :=
 $(BSG_PLATFORM_PATH)/libbsgmc_cuda_legacy_pod_repl.so.1.0: $(LIB_OBJECTS_CUDA_POD_REPL)
-	$(RV_AR) -rcs $@ $^
+	$(RV_AR) -rcs $@ $(LIB_OBJECTS_CUDA_POD_REPL)
 else
 $(BSG_PLATFORM_PATH)/libbsgmc_cuda_legacy_pod_repl.so.1.0: LD = $(CXX)
 $(BSG_PLATFORM_PATH)/libbsgmc_cuda_legacy_pod_repl.so.1.0: $(LIB_OBJECTS_CUDA_POD_REPL)
@@ -155,8 +157,9 @@ $(BSG_PLATFORM_PATH)/libbsg_manycore_regression.so.1.0: LDFLAGS  :=
 $(BSG_PLATFORM_PATH)/libbsg_manycore_regression.so.1.0: INCLUDES :=
 
 ifdef __NEWLIB
+$(BSG_PLATFORM_PATH)/libbsg_manycore_regression.so.1.0: LDFLAGS :=
 $(BSG_PLATFORM_PATH)/libbsg_manycore_regression.so.1.0: $(LIB_OBJECTS_REGRESSION)
-	$(RV_AR) -rcs $@ $^
+	$(RV_AR) -rcs $@ $(LIB_OBJECTS_REGRESSION)
 else
 $(BSG_PLATFORM_PATH)/libbsg_manycore_regression.so.1.0: LD = $(CXX)
 $(BSG_PLATFORM_PATH)/libbsg_manycore_regression.so.1.0: $(LIB_OBJECTS_REGRESSION)
