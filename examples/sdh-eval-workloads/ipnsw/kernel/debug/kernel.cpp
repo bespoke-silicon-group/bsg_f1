@@ -1,0 +1,2 @@
+extern "C" int empty() {
+}

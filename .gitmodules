@@ -1,0 +1,12 @@
+[submodule "n"]
+	path = examples/sdh-eval-workloads/ipnsw/hb-prog-eval
+	url = git@github.com:bespoke-silicon-group/hb-prog-eval
+[submodule "examples/sdh-eval-workloads/ipnsw/graph-tools"]
+	path = examples/sdh-eval-workloads/ipnsw/graph-tools
+	url = git@github.com:bespoke-silicon-group/graph-tools
+[submodule "examples/sdh-eval-workloads/ipnsw/hammerblade-helpers"]
+	path = examples/sdh-eval-workloads/ipnsw/hammerblade-helpers
+	url = git@github.com:bespoke-silicon-group/hammerblade-helpers
+[submodule "examples/graphit/graphit-src"]
+	path = examples/graphit/graphit-src
+	url = git@github.com:bespoke-silicon-group/graphit.git 

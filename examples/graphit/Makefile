@@ -25,8 +25,8 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-# This Makefile is for running the examples in bsg_replicant
-#
+# This Makefile compiles, links, and executes examples Run `make help`
+# to see the available targets for the selected platform.
 
 # environment.mk verifies the build environment and sets the following
 # makefile variables:
@@ -44,29 +44,18 @@ include $(REPLICANT_PATH)/environment.mk
 # Defines REGRESSION_PREBUILD
 include $(EXAMPLES_PATH)/link.mk
 
-# Supported example suites
-TARGETS = library spmd cuda python graphit
-
 # Define the tests that get run
-TESTS += test_loader
+TESTS += test_pr_nibble
 
-regression: $(TARGETS)
-	@echo "REGRESSION PASSED"
+regression: $(TESTS)
+	@echo "GRAPHIT REGRESSION PASSED"
 
-$(TARGETS): $(REGRESSION_PREBUILD)
+$(TESTS): $(REGRESSION_PREBUILD)
 	$(MAKE) -C $@ regression
 
-.DEFAULT_GOAL := help
-help:
-	@echo "Usage:"
-	@echo "make {regression|clean|<subdirectory_name>}"
-	@echo "      regression: Run all tests in all subdirectories"
-	@echo "      <subdirectory_name>: Run all the regression tests for"
-	@echo "             a specific sub-directory (Options are: $(TARGETS))"
-	@echo "      clean: Remove all build files"
+clean: $(TESTS:=.clean)
 
-clean: hardware.clean libraries.clean
-	$(foreach t,$(TARGETS), $(MAKE) -C $t clean;)
-	rm -rf regression.log runtime.log
+%.clean:
+	$(MAKE) -C $(@:.clean=) clean
 
-.PHONY: help clean regression $(TARGETS)
+.PHONY: clean regression $(TESTS) %.clean
