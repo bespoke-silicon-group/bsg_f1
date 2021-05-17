@@ -109,31 +109,18 @@ TEST_CXXSOURCES += $(filter %.cpp,$(TEST_SOURCES))
 TEST_OBJECTS    += $(TEST_CXXSOURCES:.cpp=.o)
 TEST_OBJECTS    += $(TEST_CSOURCES:.c=.o)
 
+$(BSG_PLATFORM_PATH)/test.riscv: CC = $(RV_CC)
+$(BSG_PLATFORM_PATH)/test.riscv: CXX = $(RV_CXX)
 $(BSG_PLATFORM_PATH)/test.riscv: $(TEST_OBJECTS)
 $(BSG_PLATFORM_PATH)/test.riscv: $(BSG_PLATFORM_PATH)/lfs.o
 $(BSG_PLATFORM_PATH)/test.riscv: $(BSG_PLATFORM_PATH)/libbsg_manycore_runtime.a
 $(BSG_PLATFORM_PATH)/test.riscv: $(BSG_PLATFORM_PATH)/libbsgmc_cuda_legacy_pod_repl.a
 $(BSG_PLATFORM_PATH)/test.riscv: $(BSG_PLATFORM_PATH)/libbsg_manycore_regression.a
 $(BSG_PLATFORM_PATH)/test.riscv: LDFLAGS := -T$(BLACKPARROT_DIR)/sdk/linker/riscv.ld -L$(BSG_PLATFORM_PATH) -static -nostartfiles -lstdc++ -lbsg_manycore_runtime -lbsg_manycore_regression
+$(BSG_PLATFORM_PATH)/test.riscv: LD = $(CXX)
 $(BSG_PLATFORM_PATH)/test.riscv:
-	$(RV_CXX) -D_DRAMFS -o $@ $(BSG_PLATFORM_PATH)/software/src/crt0.o $(BSG_PLATFORM_PATH)/lfs.o $< $(LDFLAGS)
+	$(LD) -D_DRAMFS -o $@ $(BSG_PLATFORM_PATH)/software/src/crt0.o $(BSG_PLATFORM_PATH)/lfs.o $< $(LDFLAGS)
 	cp $@ $(subst riscv,elf,$(notdir $@))
-
-$(BSG_PLATFORM_PATH)/libbsg_manycore_platform.so.1.0: $(DROMAJO_OBJECTS)
-$(BSG_PLATFORM_PATH)/libbsg_manycore_platform.so.1.0: $(PLATFORM_OBJECTS)
-$(BSG_PLATFORM_PATH)/libbsg_manycore_platform.so.1.0: LDFLAGS := -fPIC
-$(BSG_PLATFORM_PATH)/libbsg_manycore_platform.so.1.0: LDFLAGS += -L$(LIBRARIES_PATH)/features/dma/simulation -Wl,-rpath=$(LIBRARIES_PATH)/features/dma/simulation -ldmamem
-$(BSG_PLATFORM_PATH)/libbsg_manycore_platform.so.1.0: $(LIBRARIES_PATH)/features/dma/simulation/libdmamem.so
-$(BSG_PLATFORM_PATH)/libbsg_manycore_platform.so.1.0: LDFLAGS += -L$(LIBRARIES_PATH)/features/dma/simulation -Wl,-rpath=$(LIBRARIES_PATH)/features/dma/simulation -ldramsim3
-$(BSG_PLATFORM_PATH)/libbsg_manycore_platform.so.1.0: $(LIBRARIES_PATH)/features/dma/simulation/libdramsim3.so
-$(BSG_PLATFORM_PATH)/libbsg_manycore_platform.so.1.0:
-	$(CXX) -shared -Wl,-soname,$(basename $(notdir $@)) -o $@ $(DROMAJO_OBJECTS) $(PLATFORM_OBJECTS) $(LDFLAGS)
-
-$(BSG_PLATFORM_PATH)/libbsg_manycore_platform.so.1: %: %.0
-	ln -sf $@.0 $@
-
-$(BSG_PLATFORM_PATH)/libbsg_manycore_platform.so: %: %.1
-	ln -sf $@.1 $@
 
 # VCS Generates an executable file by linking the TEST_OBJECTS with
 # the the VCS work libraries for the design, and the runtime shared

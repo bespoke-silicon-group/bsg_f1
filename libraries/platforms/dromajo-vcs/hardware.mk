@@ -120,8 +120,8 @@ VSOURCES += $(BASEJUMP_STL_DIR)/bsg_dataflow/bsg_serial_in_parallel_out_full.v
 VSOURCES += $(BASEJUMP_STL_DIR)/bsg_dataflow/bsg_round_robin_1_to_n.v
 VSOURCES += $(BASEJUMP_STL_DIR)/bsg_dataflow/bsg_one_fifo.v
 
-VSOURCES += $(LIBRARIES_PATH)/platforms/aws-fpga/hardware/bsg_manycore_endpoint_to_fifos_pkg.v
-VSOURCES += $(LIBRARIES_PATH)/platforms/aws-fpga/hardware/bsg_manycore_endpoint_to_fifos.v
+VSOURCES += $(HARDWARE_PATH)/bsg_manycore_endpoint_to_fifos_pkg.v
+VSOURCES += $(HARDWARE_PATH)/bsg_manycore_endpoint_to_fifos.v
 
 VSOURCES += $(BSG_MANYCORE_DIR)/testbenches/common/v/vanilla_core_saif_dumper.v
 
@@ -145,7 +145,7 @@ BSG_DESIGN_TOP := replicant_tb_top
 
 VSOURCES += $(LIBRARIES_PATH)/platforms/bigblade-vcs/hardware/dpi_top.sv
 
-VINCLUDES += $(LIBRARIES_PATH)/platforms/bigblade-vcs/hardware
+VINCLUDES += $(BSG_PLATFORM_PATH)/hardware
 VINCLUDES += $(BSG_PLATFORM_PATH)
 
 

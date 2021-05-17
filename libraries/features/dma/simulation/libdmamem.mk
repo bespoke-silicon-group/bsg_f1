@@ -60,7 +60,7 @@ dmamem.clean:
 libraries.clean: dmamem.clean
 
 # Rules for building Simulation "DMA library"
-$(LIBRARIES_PATH)/features/dma/simulation/libdmamem.so: CXXFLAGS += -std=c++11 -D_GNU_SOURCE -D_DEFAULT_SOURCE -Wall -fPIC -shared
+$(LIBRARIES_PATH)/features/dma/simulation/libdmamem.so: CXXFLAGS := -std=c++11 -D_GNU_SOURCE -D_DEFAULT_SOURCE -Wall -fPIC -shared
 $(LIBRARIES_PATH)/features/dma/simulation/libdmamem.so: CXXFLAGS += -I$(BASEJUMP_STL_DIR)/bsg_mem
 $(LIBRARIES_PATH)/features/dma/simulation/libdmamem.so: CXXFLAGS += -DBASEJUMP_STL_DIR="$(BASEJUMP_STL_DIR)"
 $(LIBRARIES_PATH)/features/dma/simulation/libdmamem.so: CXX=g++

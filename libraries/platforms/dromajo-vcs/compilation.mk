@@ -37,30 +37,23 @@ NC=\033[0m
 # 
 DEFINES    += -D_DRAMFS
 INCLUDES   += -I$(LIBRARIES_PATH)
-INCLUDES   += -I$(BSG_PLATFORM_PATH)/software/include
 INCLUDES   += -I$(BSG_PLATFORM_PATH)
+INCLUDES   += -I$(BSG_PLATFORM_PATH)/software/include
 INCLUDES   += -I$(BLACKPARROT_DIR)/sdk/perch
 
 CXXFLAGS   += $(DEFINES) -march=rv64imafd -mabi=lp64 -mcmodel=medany
 CFLAGS     += $(DEFINES) -march=rv64imafd -mabi=lp64 -mcmodel=medany
-SFLAGS     += $(DEFINES) -march=rv64imafd -mabi=lp64 -mcmodel=medany 
-
-RV_CC = $(BLACKPARROT_DIR)/sdk/install/bin/riscv64-unknown-elf-dramfs-gcc
-RV_CXX = $(BLACKPARROT_DIR)/sdk/install/bin/riscv64-unknown-elf-dramfs-g++
-export RV_AR = $(BLACKPARROT_DIR)/sdk/install/bin/riscv64-unknown-elf-dramfs-ar
+SFLAGS     += $(DEFINES) -march=rv64imafd -mabi=lp64 -mcmodel=medany
 
 # each regression target needs to build its .o from a .c and .h of the
 # same name
-%.o: CC = $(RV_CC)
 %.o: %.c
 	$(CC) -c -o $@ $< $(INCLUDES) $(CFLAGS) $(CDEFINES)
 
 # ... or a .cpp and .hpp of the same name
-%.o: CXX = $(RV_CXX)
 %.o: %.cpp
 	$(CXX) -c -o $@ $< $(INCLUDES) $(CXXFLAGS) $(CXXDEFINES)
 
-%.o: CC = $(RV_CC)
 %.o: %.S
 	$(CC) -c -o $@ $< $(INCLUDES) $(SFLAGS)
 

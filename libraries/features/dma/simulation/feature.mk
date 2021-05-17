@@ -46,6 +46,7 @@ $(DMA_FEATURE_OBJECTS): CXXFLAGS := -std=c++11 -fPIC $(INCLUDES) -D_GNU_SOURCE -
 
 $(BSG_PLATFORM_PATH)/libbsg_manycore_runtime.so.1.0: $(DMA_FEATURE_OBJECTS)
 
+$(BSG_PLATFORM_PATH)/libbsg_manycore_runtime.a: $(DMA_FEATURE_OBJECTS)
 
 .PHONY: dma_feature.clean
 dma_feature.clean:

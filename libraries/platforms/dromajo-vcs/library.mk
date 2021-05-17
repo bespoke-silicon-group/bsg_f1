@@ -25,11 +25,13 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-# Dromajo/BlackParrot uses riscv-newlib for compilation
-__NEWLIB = 1
+# RISC-V tools
+RV_CC = $(BLACKPARROT_DIR)/sdk/install/bin/riscv64-unknown-elf-dramfs-gcc
+RV_CXX = $(BLACKPARROT_DIR)/sdk/install/bin/riscv64-unknown-elf-dramfs-g++
+RV_AR = $(BLACKPARROT_DIR)/sdk/install/bin/riscv64-unknown-elf-dramfs-ar
+
 DROMAJO_DIR = $(BLACKPARROT_DIR)/sdk/dromajo
 
-# Compile the platform-level code and features with the library
 LIB_CXXSOURCES += $(LIBRARIES_PATH)/features/tracer/noimpl/bsg_manycore_tracer.cpp
 LIB_CXXSOURCES += $(LIBRARIES_PATH)/features/profiler/noimpl/bsg_manycore_profiler.cpp
 LIB_CXXSOURCES += $(BSG_PLATFORM_PATH)/bsg_manycore_platform.cpp
@@ -63,17 +65,26 @@ $(DMA_FEATURE_OBJECTS): CFLAGS += -march=rv64imafd -mcmodel=medany -mabi=lp64 -D
 $(DMA_FEATURE_OBJECTS): CXXFLAGS += -march=rv64imafd -mcmodel=medany -mabi=lp64 -D_BSD_SOURCE -D_XOPEN_SOURCE=500
 
 # Add the riscv-newlib specific includes for the library
-$(LIB_OBJECTS) $(LIB_OBJECTS_CUDA_POD_REPL) $(LIB_OBJECTS_REGRESSION): INCLUDES := -I$(BSG_PLATFORM_PATH)/software/include
-$(LIB_OBJECTS) $(LIB_OBJECTS_CUDA_POD_REPL) $(LIB_OBJECTS_REGRESSSION): INCLUDES += -I$(BLACKPARROT_DIR)/sdk/perch
+LIB_PLATFORM_INCLUDES =  -I$(BSG_PLATFORM_PATH)/software/include
+LIB_PLATFORM_INCLUDES += -I$(BLACKPARROT_DIR)/sdk/perch
+
+$(LIB_OBJECTS) $(LIB_OBJECTS_CUDA_POD_REPL) $(LIB_OBJECTS_REGRESSION): CC = $(RV_CC)
+$(LIB_OBJECTS) $(LIB_OBJECTS_CUDA_POD_REPL) $(LIB_OBJECTS_REGRESSION): CXX = $(RV_CXX)
+
+$(BSG_PLATFORM_PATH)/libbsg_manycore_runtime.a: AR = $(RV_AR)
+$(BSG_PLATFORM_PATH)/libbsgmc_cuda_legacy_pod_repl.a: AR = $(RV_AR)
+$(BSG_PLATFORM_PATH)/libbsg_manycore_regression.a: AR = $(RV_AR)
 
 # Make the litteFS file system
 $(BSG_PLATFORM_PATH)/lfs.o:
 	$(MAKE) -C $(BLACKPARROT_DIR)/sdk/bp-tests lfs.cpp
-	$(RV_CXX) $(BLACKPARROT_DIR)/sdk/bp-tests/lfs.cpp -c -o $@ $(CXXFLAGS) $(INCLUDES)
+	$(CXX) $(BLACKPARROT_DIR)/sdk/bp-tests/lfs.cpp -c -o $@ $(CXXFLAGS) $(INCLUDES)
 
-# Compile the feature libraries with the manycore runtime
-$(LIB_OBJECTS) $(LIB_OBJECTS_CUDA_POD_REPL) $(LIB_OBJECTS_REGRESSION): INCLUDES += -I$(LIBRARIES_PATH)/features/profiler
-$(LIB_OBJECTS) $(LIB_OBJECTS_CUDA_POD_REPL) $(LIB_OBJECTS_REGRESSION): INCLUDES += -I$(LIBRARIES_PATH)/features/tracer
+include $(LIBRARIES_PATH)/features/dma/simulation/dramsim3.mk
+include $(LIBRARIES_PATH)/features/dma/simulation/libdmamem.mk
+
+$(LIBRARIES_PATH)/features/dma/simulation/libdmamem.so: INCLUDES :=
+$(LIBRARIES_PATH)/features/dma/simulation/libdramsim3.so: INCLUDES :=
 
 DROMAJO_CXXSOURCES += $(DROMAJO_DIR)/src/cutils.cpp
 DROMAJO_CXXSOURCES += $(DROMAJO_DIR)/src/dromajo_cosim.cpp
@@ -100,17 +111,6 @@ $(DROMAJO_OBJECTS): CXXFLAGS := -std=c++11 -fPIC -Wall -Wno-parentheses -MMD -D_
 $(DROMAJO_OBJECTS): LDFLAGS := -fPIC
 $(DROMAJO_OBJECTS): CXX = g++
 
-include $(LIBRARIES_PATH)/features/dma/simulation/dramsim3.mk
-include $(LIBRARIES_PATH)/features/dma/simulation/libdmamem.mk
-
-$(LIBRARIES_PATH)/features/dma/simulation/libdmamem.so: CXXFLAGS := $(filter-out -march=%,$(CXXFLAGS))
-$(LIBRARIES_PATH)/features/dma/simulation/libdmamem.so: CXXFLAGS := $(filter-out -mabi=%,$(CXXFLAGS))
-$(LIBRARIES_PATH)/features/dma/simulation/libdmamem.so: CXXFLAGS := $(filter-out -mcmodel=%,$(CXXFLAGS))
-$(LIBRARIES_PATH)/features/dma/simulation/libdmamem.so: CXXFLAGS := $(filter-out -D_DRAMFS,$(CXXFLAGS))
-$(LIBRARIES_PATH)/features/dma/simulation/libdmamem.so: INCLUDES :=
-
-$(LIBRARIES_PATH)/features/dma/simulation/libdramsim3.so: INCLUDES :=
-
 PLATFORM_CXXSOURCES += $(BSG_PLATFORM_PATH)/bsg_manycore_simulator.cpp
 
 PLATFORM_OBJECTS += $(patsubst %cpp,%o,$(PLATFORM_CXXSOURCES))
@@ -129,24 +129,21 @@ $(PLATFORM_OBJECTS): CXXFLAGS := -std=c++11 -fPIC -DVCS -D_GNU_SOURCE -DVERILATO
 $(PLATFORM_OBJECTS): LDFLAGS  := -fPIC
 $(PLATFORM_OBJECTS): CXX = g++
 
-# Mirror the extensions linux installation in /usr/lib provides so
-# that we can use -lbsg_manycore_runtime
-$(BSG_PLATFORM_PATH)/libbsg_manycore_runtime.a.1: %.a.1: %.so.1.0
-	ln -sf $(basename $(basename $@)).so.1.0 $@
+$(BSG_PLATFORM_PATH)/libbsg_manycore_platform.so.1.0: $(DROMAJO_OBJECTS)
+$(BSG_PLATFORM_PATH)/libbsg_manycore_platform.so.1.0: $(PLATFORM_OBJECTS)
+$(BSG_PLATFORM_PATH)/libbsg_manycore_platform.so.1.0: $(LIBRARIES_PATH)/features/dma/simulation/libdmamem.so
+$(BSG_PLATFORM_PATH)/libbsg_manycore_platform.so.1.0: $(LIBRARIES_PATH)/features/dma/simulation/libdramsim3.so
+$(BSG_PLATFORM_PATH)/libbsg_manycore_platform.so.1.0: LDFLAGS := -fPIC
+$(BSG_PLATFORM_PATH)/libbsg_manycore_platform.so.1.0: LDFLAGS += -L$(LIBRARIES_PATH)/features/dma/simulation -Wl,-rpath=$(LIBRARIES_PATH)/features/dma/simulation -ldmamem
+$(BSG_PLATFORM_PATH)/libbsg_manycore_platform.so.1.0: LDFLAGS += -L$(LIBRARIES_PATH)/features/dma/simulation -Wl,-rpath=$(LIBRARIES_PATH)/features/dma/simulation -ldramsim3
+$(BSG_PLATFORM_PATH)/libbsg_manycore_platform.so.1.0: LD = $(CXX)
+$(BSG_PLATFORM_PATH)/libbsg_manycore_platform.so.1.0:
+	$(LD) -shared -Wl,-soname,$(basename $(notdir $@)) -o $@ $(DROMAJO_OBJECTS) $(PLATFORM_OBJECTS) $(LDFLAGS)
 
-$(BSG_PLATFORM_PATH)/libbsgmc_cuda_legacy_pod_repl.a.1: %.a.1: %.so.1.0
-	ln -sf $(basename $(basename $@)).so.1.0 $@
+$(BSG_PLATFORM_PATH)/libbsg_manycore_platform.so.1: %: %.0
+	ln -sf $@.0 $@
 
-$(BSG_PLATFORM_PATH)/libbsg_manycore_regression.a.1: %.a.1: %.so.1.0
-	ln -sf $(basename $(basename $@)).so.1.0 $@
-
-$(BSG_PLATFORM_PATH)/libbsg_manycore_runtime.a: %: %.1
-	ln -sf $@.1 $@
-
-$(BSG_PLATFORM_PATH)/libbsgmc_cuda_legacy_pod_repl.a: %: %.1
-	ln -sf $@.1 $@
-
-$(BSG_PLATFORM_PATH)/libbsg_manycore_regression.a: %: %.1
+$(BSG_PLATFORM_PATH)/libbsg_manycore_platform.so: %: %.1
 	ln -sf $@.1 $@
 
 platform.clean:
@@ -154,12 +151,7 @@ platform.clean:
 	rm -f $(DROMAJO_OBJECTS)
 	rm -f $(BSG_PLATFORM_PATH)/lfs.o
 	rm -f $(BSG_PLATFORM_PATH)/libbsg_manycore_runtime.a
-	rm -f $(BSG_PLATFORM_PATH)/libbsg_manycore_runtime.a.1
 	rm -f $(BSG_PLATFORM_PATH)/libbsgmc_cuda_legacy_pod_repl.a
-	rm -f $(BSG_PLATFORM_PATH)/libbsgmc_cuda_legacy_pod_repl.a.1
 	rm -f $(BSG_PLATFORM_PATH)/libbsg_manycore_regression.a
-	rm -f $(BSG_PLATFORM_PATH)/libbsg_manycore_regression.a.1
-	rm -f $(BSG_PLATFORM_PATH)/libbsg_manycore_platform.so
-	rm -f $(BSG_PLATFORM_PATH)/libbsg_manycore_platform.so.1
 
 libraries.clean: platform.clean
