@@ -271,10 +271,21 @@ int SimulationWrapper::dromajo_transmit_packet() {
             data = 0xFFFFFFFF;
         }
 
+        // Dromajo/BlackParrot wants to know if reset is done
         else if (dromajo_to_mc_packet.request.addr == 0x200) {
           bool done;
           dpi->reset_is_done(done);
           if (done)
+            data = 1;
+          else
+            data = 0;
+        }
+
+        // Dromajo/BlackParrot wants to know if the TX FIFO is vacant
+        else if (dromajo_to_mc_packet.request.addr == 0x300) {
+          bool is_vacant;
+          dpi->tx_is_vacant(is_vacant);
+          if (is_vacant)
             data = 1;
           else
             data = 0;
@@ -301,6 +312,12 @@ int SimulationWrapper::dromajo_transmit_packet() {
     else {
       pkt = reinterpret_cast<__m128i *>(&dromajo_to_mc_packet);
 
+      // Allows the DPI interface to track response FIFO capacity
+      bool expect_response =
+        (dromajo_to_mc_packet.request.op_v2 != HB_MC_PACKET_OP_REMOTE_STORE) &&
+        (dromajo_to_mc_packet.request.op_v2 != HB_MC_PACKET_OP_REMOTE_SW) &&
+        (dromajo_to_mc_packet.request.op_v2 != HB_MC_PACKET_OP_CACHE_OP);
+
       // Attempt packet transmission
       // Since we trigger a call to the transmit FIFOs only when the Dromajo
       // FIFOs are full, we need to wait until the DPI FIFOs are ready to receive
@@ -309,9 +326,10 @@ int SimulationWrapper::dromajo_transmit_packet() {
       // create backpressure in actual hardware and provision for it.
       do {
         advance_time();
-        err = dpi->tx_req(*pkt);
+        err = dpi->tx_req(*pkt, expect_response);
       } while (err != BSG_NONSYNTH_DPI_SUCCESS &&
           (err == BSG_NONSYNTH_DPI_NO_CREDITS ||
+           err == BSG_NONSYNTH_DPI_NO_CAPACITY ||
            err == BSG_NONSYNTH_DPI_NOT_WINDOW ||
            err == BSG_NONSYNTH_DPI_BUSY       ||
            err == BSG_NONSYNTH_DPI_NOT_READY));
@@ -350,7 +368,8 @@ int SimulationWrapper::dromajo_receive_packet() {
     err = dpi->rx_req(pkt);
   } while (err != BSG_NONSYNTH_DPI_SUCCESS    &&
           (err == BSG_NONSYNTH_DPI_NOT_WINDOW ||
-           err == BSG_NONSYNTH_DPI_BUSY       ));
+           err == BSG_NONSYNTH_DPI_BUSY       ||
+           err == BSG_NONSYNTH_DPI_INVALID));
 
   if (err == BSG_NONSYNTH_DPI_SUCCESS) {
     mc_to_dromajo_req_packet = reinterpret_cast<hb_mc_packet_t *>(&pkt);
@@ -369,7 +388,8 @@ int SimulationWrapper::dromajo_receive_packet() {
     err = dpi->rx_rsp(pkt);
   } while (err != BSG_NONSYNTH_DPI_SUCCESS    &&
           (err == BSG_NONSYNTH_DPI_NOT_WINDOW ||
-           err == BSG_NONSYNTH_DPI_BUSY       ));
+           err == BSG_NONSYNTH_DPI_BUSY       ||
+           err == BSG_NONSYNTH_DPI_INVALID));
 
   if (err == BSG_NONSYNTH_DPI_SUCCESS) {
     mc_to_dromajo_resp_packet = reinterpret_cast<hb_mc_packet_t *>(&pkt);
@@ -391,17 +411,25 @@ int SimulationWrapper::dromajo_receive_packet() {
  * for the Dromajo->Manycore request FIFO in dromajo
  */
 int SimulationWrapper::dromajo_set_credits() {
-  int credits;
-  int err = dpi->get_credits(credits);
-  if (err == BSG_NONSYNTH_DPI_SUCCESS) {
-    if (credits < 0)
-      bsg_pr_warn("Credit value is negative!\n");
+  int credits, credits_used, max_credits;
+  int err;
 
+  err = dpi->get_credits_used(credits_used);
+  if (err != BSG_NONSYNTH_DPI_SUCCESS) {
+    bsg_pr_err(bsg_nonsynth_dpi_strerror(err));
+    return HB_MC_FAIL;
+  }
+
+  err = dpi->get_credits_max(max_credits);
+  if (err == BSG_NONSYNTH_DPI_SUCCESS) {
+    credits = max_credits - credits_used;
+    if (credits < 0)
+      bsg_pr_err("Credit value is < 0. Must be non-negative\n");
     host_to_mc_req_fifo->credits = credits;
   }
   else {
     bsg_pr_err(bsg_nonsynth_dpi_strerror(err));
-    return HB_MC_FAIL;
+    return err;
   }
 
   return HB_MC_SUCCESS;

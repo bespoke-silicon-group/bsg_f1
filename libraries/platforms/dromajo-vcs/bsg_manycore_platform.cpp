@@ -191,8 +191,10 @@ int hb_mc_platform_get_config_at(hb_mc_manycore_t *mc, unsigned int idx, hb_mc_c
     req_pkt.request.addr = 0x100 + idx;
     bp_hb_write_to_manycore_bridge(&req_pkt);
     int err = bp_hb_read_from_manycore_bridge(&resp_pkt, HB_MC_FIFO_RX_RSP);
-    if (err != 0)
+    if (err != HB_MC_SUCCESS) {
+      bsg_pr_err("Config read failed\n");
       return HB_MC_FAIL;
+    }
 
     uint32_t data = resp_pkt.response.data;
     if (data != 0xFFFFFFFF)
@@ -214,8 +216,9 @@ int hb_mc_platform_get_config_at(hb_mc_manycore_t *mc, unsigned int idx, hb_mc_c
  */
 int hb_mc_platform_fence(hb_mc_manycore_t *mc, long timeout) {
   int credits, err;
-  bool isvacant;
   uint32_t max_credits;
+  int is_vacant;
+  hb_mc_packet_t req_pkt, resp_pkt;
 
   const hb_mc_config_t *cfg = hb_mc_manycore_get_config(mc);
   hb_mc_platform_t *platform = reinterpret_cast<hb_mc_platform_t *>(mc->platform); 
@@ -226,12 +229,25 @@ int hb_mc_platform_fence(hb_mc_manycore_t *mc, long timeout) {
     return HB_MC_NOIMPL;
   }
 
+  // Prepare host packet to query TX vacancy
+  req_pkt.request.x_dst = 0;
+  req_pkt.request.y_dst = 0;
+  req_pkt.request.x_src = 0;
+  req_pkt.request.y_src = 1;
+  req_pkt.request.op_v2 = HB_MC_PACKET_OP_REMOTE_LOAD;
+  req_pkt.request.payload = 0;
+  req_pkt.request.reg_id = 0;
+  req_pkt.request.addr = 0x300; // x86 Host address to poll tx vacancy
+
   do
   {
     credits = bp_hb_get_credits();
-  } while (!(credits == (int)max_credits));
+    bp_hb_write_to_manycore_bridge(&req_pkt);
+    err = bp_hb_read_from_manycore_bridge(&resp_pkt, HB_MC_FIFO_RX_RSP);
+    is_vacant = resp_pkt.response.data;
+  } while ((err == HB_MC_SUCCESS) && !(credits == max_credits) && (is_vacant == 1));
 
-  return HB_MC_SUCCESS;
+  return err;
 }
 
 /**
