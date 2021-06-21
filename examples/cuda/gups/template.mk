@@ -101,7 +101,8 @@ BSG_MANYCORE_KERNELS = $(EXAMPLES_PATH)/cuda/gups/main.riscv
 RISCV_TARGET_OBJECTS += gups-kernel.riscv.rvo
 RISCV_INCLUDES += -I$(EXAMPLES_PATH)/cuda/gups/include/kernel
 RISCV_INCLUDES += -I$(EXAMPLES_PATH)/cuda/gups/include/common
-RISCV_CCPPFLAGS += -D__KERNEL__
+RISCV_CCPPFLAGS += -D__KERNEL__ -ffreestanding $(EXTRA_RISCV_CCPPFLAGS)
+RISCV_OPT_LEVEL = -O3
 
 TILE_GROUP_DIM_X=2
 TILE_GROUP_DIM_Y=2
@@ -111,6 +112,9 @@ RISCV_DEFINES += -Dbsg_tiles_X=$(TILE_GROUP_DIM_X)
 RISCV_DEFINES += -Dbsg_tiles_Y=$(TILE_GROUP_DIM_Y)
 
 include $(EXAMPLES_PATH)/cuda/riscv.mk
+
+RISCV_CXX := $(RISCV_CLANGXX)
+RISCV_CC  := $(RISCV_CLANG)
 
 ###############################################################################
 # Execution flow
