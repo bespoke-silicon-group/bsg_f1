@@ -44,23 +44,19 @@
 #include <vector>
 #include <algorithm>
 
-#define TABLE_SIZE (64<<10)
-#define UPDATES_PER_CORE 16
-#define CORES 1
-#define UPDATES ((CORES)*(UPDATES_PER_CORE))
-
 using namespace hammerblade::host;
-using namespace BFS;
+using namespace GUPS;
 using namespace std;
 
 HammerBlade::Ptr HB;
+CL *cl;
 
 static std::vector<int> setup_X()
 {
-    std::uniform_int_distribution<int> dist(0, TABLE_SIZE);
+    std::uniform_int_distribution<int> dist(0, cl->table_size());
     std::default_random_engine gen;
     
-    std::vector<int> X(UPDATES);
+    std::vector<int> X(cl->updates());
     for (int i = 0; i < X.size(); i++)
         X[i] = dist(gen);
 
@@ -70,7 +66,7 @@ static std::vector<int> setup_X()
 
 static std::vector<int> setup_A()
 {
-    std::vector<int> A(TABLE_SIZE);
+    std::vector<int> A(cl->table_size());
     for (int i = 0; i < A.size(); i++)
         A[i] = i;
 
@@ -79,11 +75,17 @@ static std::vector<int> setup_A()
 
 int Main(int argc, char *argv[])
 {
-    CL cl;
-    cl.parse(argc, argv);
-    
+    cl = new CL;
+    cl->parse(argc, argv);        
+
+    bsg_pr_dbg("table_size = %d\n", cl->table_size());
+    bsg_pr_dbg("updates_per_core = %d\n", cl->updates_per_core());
+    bsg_pr_dbg("cores = %d\n", cl->cores());
+    bsg_pr_dbg("updates = %d\n", cl->updates());
+
+
     HB = HammerBlade::Get();
-    HB->load_application(cl.binary_path());
+    HB->load_application(cl->binary_path());
     // setup X
     std::vector<int> X = setup_X();    
 
@@ -96,7 +98,7 @@ int Main(int argc, char *argv[])
     
     // prime X
     bsg_pr_dbg("Priming X\n");
-    HB->push_job(Dim(CORES,1), Dim(1,1), "prime", X_dev, UPDATES);
+    HB->push_job(Dim(cl->cores(),1), Dim(1,1), "prime", X_dev, cl->updates());
     HB->exec();
     
     // setup A
@@ -110,9 +112,9 @@ int Main(int argc, char *argv[])
     
     // run GUPS
     bsg_pr_dbg("Running %d updates with %d groups (%d per group)\n",
-               UPDATES, CORES, UPDATES_PER_CORE);
+               cl->updates(), cl->cores(), cl->updates_per_core());
 
-    HB->push_job(Dim(CORES,1), Dim(1,1), "gups", A_dev);
+    HB->push_job(Dim(cl->cores(),1), Dim(1,1), "gups", A_dev);
     HB->exec();
 
     return HB_MC_SUCCESS;

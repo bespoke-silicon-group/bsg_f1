@@ -120,19 +120,12 @@ include $(EXAMPLES_PATH)/cuda/riscv.mk
 #
 # SIM_ARGS: Use this to pass arguments to the simulator
 ###############################################################################
-C_ARGS ?= $(BSG_MANYCORE_KERNELS) $(KERNEL_NAME)
+C_ARGS ?= $(BSG_MANYCORE_KERNELS) $(KERNEL_NAME) $(EXTRA_C_ARGS)
 
 SIM_ARGS ?=
 
 # Include platform-specific execution rules
 include $(EXAMPLES_PATH)/execution.mk
-
-###############################################################################
-# Regression Flow
-###############################################################################
-
-regression: main.exec.log
-	@grep "BSG REGRESSION TEST .*PASSED.*" $< > /dev/null
 
 ###############################################################################
 # Default rules, help, and clean
@@ -148,13 +141,3 @@ help:
 
 
 .PHONY: clean
-
-clean:
-	BSG_MANYCORE_DIR=$(BSG_MANYCORE_DIR) \
-	BASEJUMP_STL_DIR=$(BASEJUMP_STL_DIR) \
-	BSG_IP_CORES_DIR=$(BASEJUMP_STL_DIR) \
-	IGNORE_CADENV=1 \
-	BSG_MACHINE_PATH=$(BSG_MACHINE_PATH) \
-	$(MAKE) -j1 -C $(CUDALITE_SRC_PATH)/$(KERNEL_NAME) clean
-
-
