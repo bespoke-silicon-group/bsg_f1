@@ -17,6 +17,7 @@ get-run-type = $(firstword $(subst _, ,$(filter %_run,$(subst __, ,$1))))
 
 TESTS += $(call test-name,1024,16,1,1,profile)
 TESTS += $(call test-name,1024,16,1,2,profile)
+TESTS += $(call test-name,1024,16,1,4,profile)
 TESTS_DISASSEMBLY = $(addsuffix .dis,$(TESTS))
 
 $(TESTS_DISASSEMBLY):
