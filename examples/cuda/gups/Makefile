@@ -15,9 +15,17 @@ get-concurrency = $(firstword $(subst _, ,$(filter %_concurrency,$(subst __, ,$1
 # $1 = Test name
 get-run-type = $(firstword $(subst _, ,$(filter %_run,$(subst __, ,$1))))
 
-TESTS += $(call test-name,1024,16,1,1,profile)
-TESTS += $(call test-name,1024,16,1,2,profile)
-TESTS += $(call test-name,1024,16,1,4,profile)
+TABLE_SIZE_NUMS		= $(shell echo 4*1024*1024|bc)
+UPDATES_PER_CORE_NUMS	= 512
+CORES_NUMS		= 1 2 4 8 16 32 64 128
+CONCURRENCY_NUMS	= 1 2 4
+
+$(foreach tblsz,$(TABLE_SIZE_NUMS),\
+$(foreach upc,$(UPDATES_PER_CORE_NUMS),\
+$(foreach cores,$(CORES_NUMS),\
+$(foreach conc,$(CONCURRENCY_NUMS),\
+$(eval TESTS += $(call test-name,$(tblsz),$(upc),$(cores),$(conc),profile))))))
+
 TESTS_DISASSEMBLY = $(addsuffix .dis,$(TESTS))
 
 $(TESTS_DISASSEMBLY):
