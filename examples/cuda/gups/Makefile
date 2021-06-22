@@ -1,3 +1,5 @@
+REPLICANT_PATH:=$(shell git rev-parse --show-toplevel)
+include $(REPLICANT_PATH)/environment.mk
 # $1 = Table size in words
 # $2 = Updates per core
 # $3 = Cores to use
@@ -26,33 +28,37 @@ $(foreach cores,$(CORES_NUMS),\
 $(foreach conc,$(CONCURRENCY_NUMS),\
 $(eval TESTS += $(call test-name,$(tblsz),$(upc),$(cores),$(conc),profile))))))
 
+# $1 test-name
+define set-submake-args
+# parse the experiment parameters from the test name
+$(eval TABLE_WORDS=$(call get-table-words,$1))
+$(eval UPDATES_PER_CORE=$(call get-updates-per-core,$1))
+$(eval CORES=$(call get-cores,$1))
+$(eval RUN_TYPE=$(call get-run-type,$1))
+$(eval CONCURRENCY=$(call get-concurrency,$1))
+# set variables to pass to make
+$(eval EXTRA_C_ARGS="$(TABLE_WORDS) $(UPDATES_PER_CORE) $(CORES)")
+$(eval EXTRA_RISCV_CPPFLAGS="-DCONCURRENCY=$(CONCURRENCY)")
+$(eval MAKE_ARGS  = EXTRA_C_ARGS=$(EXTRA_C_ARGS))
+$(eval MAKE_ARGS += EXTRA_RISCV_CPPFLAGS=$(EXTRA_RISCV_CPPFLAGS))
+$(eval MAKE_ARGS += BSG_MANYCORE_KERNELS=$(EXAMPLES_PATH)/cuda/gups/$1/main.riscv)
+endef
+
 TESTS_DISASSEMBLY = $(addsuffix .dis,$(TESTS))
 
 $(TESTS_DISASSEMBLY):
 	$(eval t=$(firstword $(subst ., ,$@)))
-	$(eval TABLE_WORDS=$(call get-table-words,$t))
-	$(eval UPDATES_PER_CORE=$(call get-updates-per-core,$t))
-	$(eval CORES=$(call get-cores,$t))
-	$(eval RUN_TYPE=$(call get-run-type,$t))
-	$(eval CONCURRENCY=$(call get-concurrency,$t))
+	$(call set-submake-args,$t)
 	mkdir -p $t/
 	cp template.mk $t/Makefile
-	$(MAKE) -C $t EXTRA_RISCV_CCPPFLAGS="-DCONCURRENCY=$(CONCURRENCY)" \
-	EXTRA_C_ARGS="$(TABLE_WORDS) $(UPDATES_PER_CORE) $(CORES)" \
-	main.dis
+	$(MAKE) -C $t $(MAKE_ARGS) main.dis
 
 .PHONY: $(TESTS)
 $(TESTS):
-	$(eval TABLE_WORDS=$(call get-table-words,$@))
-	$(eval UPDATES_PER_CORE=$(call get-updates-per-core,$@))
-	$(eval CORES=$(call get-cores,$@))
-	$(eval RUN_TYPE=$(call get-run-type,$@))
-	$(eval CONCURRENCY=$(call get-concurrency,$@))
+	$(call set-submake-args,$@)
 	mkdir -p $@/
 	cp template.mk $@/Makefile
-	$(MAKE) -C $@ EXTRA_RISCV_CCPPFLAGS="-DCONCURRENCY=$(CONCURRENCY)" \
-	EXTRA_C_ARGS="$(TABLE_WORDS) $(UPDATES_PER_CORE) $(CORES)" \
-	main.$(RUN_TYPE).log
+	$(MAKE) -C $@ $(MAKE_ARGS) main.$(RUN_TYPE).log
 
 all: $(TESTS)
 profile:   $(filter %__profile_run,$(TESTS))

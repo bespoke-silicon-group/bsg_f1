@@ -96,7 +96,10 @@ $(TEST_OBJECTS): $(TEST_HEADERS)
 
 # BSG_MANYCORE_KERNELS is a list of manycore executables that should
 # be built before executing.
-BSG_MANYCORE_KERNELS = $(EXAMPLES_PATH)/cuda/gups/main.riscv
+ifndef BSG_MANYCORE_KERNELS
+$(error "BSG_MANYCORE_KERNELS not defined")
+endif
+
 #RISCV_TARGET_OBJECTS  = main.riscv.rvo
 RISCV_TARGET_OBJECTS += gups-kernel.riscv.rvo
 RISCV_INCLUDES += -I$(EXAMPLES_PATH)/cuda/gups/include/kernel
