@@ -31,6 +31,10 @@
 
 #include <stdio.h>
 
+/**
+ * Unlock a file. This function is currently a no-op since CUDA-lite is not thread-safe.
+ * @param[in] fp    A FILE object pointer
+ */
 void funlockfile(FILE *fp)
 {
   // Do nothing

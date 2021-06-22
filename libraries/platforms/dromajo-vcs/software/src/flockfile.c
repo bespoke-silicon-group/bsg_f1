@@ -31,6 +31,10 @@
 
 #include <stdio.h>
 
+/**
+ * Lock a file. This function is currently a no-op since CUDA-lite is not thread-safe.
+ * @param[in] fp    A FILE object pointer
+ */
 void flockfile(FILE *fp)
 {
   // Do nothing
