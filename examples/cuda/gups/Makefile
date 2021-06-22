@@ -38,9 +38,9 @@ $(eval RUN_TYPE=$(call get-run-type,$1))
 $(eval CONCURRENCY=$(call get-concurrency,$1))
 # set variables to pass to make
 $(eval EXTRA_C_ARGS="$(TABLE_WORDS) $(UPDATES_PER_CORE) $(CORES)")
-$(eval EXTRA_RISCV_CPPFLAGS="-DCONCURRENCY=$(CONCURRENCY)")
+$(eval EXTRA_RISCV_CCPPFLAGS="-DCONCURRENCY=$(CONCURRENCY)")
 $(eval MAKE_ARGS  = EXTRA_C_ARGS=$(EXTRA_C_ARGS))
-$(eval MAKE_ARGS += EXTRA_RISCV_CPPFLAGS=$(EXTRA_RISCV_CPPFLAGS))
+$(eval MAKE_ARGS += EXTRA_RISCV_CCPPFLAGS=$(EXTRA_RISCV_CCPPFLAGS))
 $(eval MAKE_ARGS += BSG_MANYCORE_KERNELS=$(EXAMPLES_PATH)/cuda/gups/$1/main.riscv)
 endef
 
