@@ -10,67 +10,66 @@
 #include <bsg_manycore_printing.h>
 #include <stdio.h>
 
-// For now keep a limit on the number of arguments and the length of the argument
-// string.
-// TODO: Make this a pointer to a location on the stack
+// Number of arguments that can be retrieved is currently based on the size of the buffer.
+// Other ideas (TODO):
+// 1. Create pointers to locations of arguments on the stack (traditional, preferred method)
+// 2. Flush the argument buffer periodically
 int _argc;
 char **_argv;
 static int arg_index = 0;
-static int char_index = -1;
+static int char_index = 0;
 
+/**
+ * Retrieve arguments from the manycore host
+ */
 void __init_args(void) {
-  hb_mc_packet_t req_pkt, resp_pkt;
+  int err;
+  hb_mc_packet_t args_req_pkt, args_resp_pkt;
 
   // Flat buffer to capture all the arguments contiguously
   char buffer[3000];
   char *bufptr = buffer;
   
   // Create a packet for the x86 host
-  // Host is at (0, 0)
-  // BlackParrot FIFOs are at (0, 1) 
-  req_pkt.request.x_dst = 0;
-  req_pkt.request.y_dst = 0;
-  req_pkt.request.x_src = 0;
-  req_pkt.request.y_src = 1;
-  req_pkt.request.op_v2 = HB_MC_PACKET_OP_REMOTE_LOAD;
-  req_pkt.request.payload = 0;
-  req_pkt.request.reg_id = 0;
+  // Host is at POD (X, Y) = (0, 1), SUBCOORD (X, Y) = (0, 0)
+  // BlackParrot FIFO interface is at POD (X, Y) = (0, 1), SUBCOORD (X, Y) = (0, 1)
+  args_req_pkt.request.x_dst = (0 << 4) | 0;
+  args_req_pkt.request.y_dst = (1 << 3) | 0;
+  args_req_pkt.request.x_src = (0 << 4) | 0;
+  args_req_pkt.request.y_src = (1 << 3) | 1;
+  args_req_pkt.request.op_v2 = HB_MC_PACKET_OP_REMOTE_LOAD;
+  args_req_pkt.request.payload = 0;
+  args_req_pkt.request.reg_id = 0;
 
   while(1) {
-    // Word address 0x00 to 0xFF tell the host to retrieve arguments
-    req_pkt.request.addr = arg_index;
-    
-    // Send packet
-    bp_hb_write_to_manycore_bridge(&req_pkt);
+    // The platform setup in simulation ensures that this packet will not go over the network so
+    // we don't need to check for credits. Also, this code is executed before the CUDA-lite
+    // program starts.
+    args_req_pkt.request.addr = MC_ARGS_START_EPA_ADDR + arg_index;
+    err = bp_hb_write_to_mc_bridge(&args_req_pkt);
+    err = bp_hb_read_from_mc_bridge(&args_resp_pkt, HB_MC_FIFO_RX_RSP);
+    if (err != HB_MC_SUCCESS)
+      bp_finish(err);
 
-    // Wait for response
-    int err = bp_hb_read_from_manycore_bridge(&resp_pkt, HB_MC_FIFO_RX_RSP);
-    if (err != 0) {
-      bp_finish(1);
-    }
-
-    uint32_t data = resp_pkt.response.data;
-    if (data == 0xFFFFFFFF) {
-      break;
-    }
-    else {
+    uint32_t data = args_resp_pkt.response.data;
+    if (data != MC_HOST_OP_FINISH_CODE) {
       uint32_t mask = 0xFF000000;
       uint8_t byte;
       for(int i = 0; i < 4; i++) {
         byte = data & mask;
-        if (byte != 0x0) {
+        if (byte != (uint8_t)'\0')
           buffer[char_index] = byte;
-          char_index++;
-        }
         else {
           buffer[char_index] = '\0';
           arg_index++;
-          char_index++;
           break;
         }
+        char_index++;
         mask = mask >> 8;
       }
     }
+    else
+      break;
   }
   _argc = arg_index;
 

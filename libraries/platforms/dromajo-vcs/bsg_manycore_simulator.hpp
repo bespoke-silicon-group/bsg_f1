@@ -57,6 +57,23 @@
 declare_hb_mc_get_bits
 declare_bsg_printing
 
+#define NUM_DROMAJO_INSTR_PER_TICK 1000
+
+#define MC_ARGS_START_EPA_ADDR 0x0000
+#define MC_ARGS_FINISH_EPA_ADDR 0x00FF
+#define MC_CONFIG_START_EPA_ADDR 0x0100
+#define MC_CONFIG_FINISH_EPA_ADDR 0x01FF
+#define MC_RESET_DONE_EPA_ADDR 0x0200
+#define MC_TX_VACANT_EPA_ADDR 0x0300
+#define MC_FINISH_EPA_ADDR 0xEAD0
+#define MC_TIME_EPA_ADDR 0xEAD4
+#define MC_FAIL_EPA_ADDR 0xEAD8
+#define MC_STDOUT_EPA_ADDR 0xEADC
+#define MC_STDERR_EPA_ADDR 0xEAE0
+#define MC_BRANCH_TRACE_EPA_ADDR 0xEAE4
+#define MC_PRINT_STAT_EPA_ADDR 0xEA0C
+#define MC_HOST_OP_FINISH_CODE 0xFFFFFFFF
+
 class SimulationWrapper{
   // This is the generic pointer for implementation-specific
   // simulator details. In Verilator, this is

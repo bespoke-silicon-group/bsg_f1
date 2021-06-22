@@ -119,6 +119,9 @@ int hb_mc_platform_init(hb_mc_manycore_t *mc, hb_mc_manycore_id_t id) {
 int hb_mc_platform_transmit(hb_mc_manycore_t *mc, hb_mc_packet_t *packet, hb_mc_fifo_tx_t type, long timeout) {
   hb_mc_platform_t *platform = reinterpret_cast<hb_mc_platform_t *>(mc->platform);
   const char *typestr = hb_mc_fifo_tx_to_string(type);
+  const hb_mc_config_t *cfg = hb_mc_manycore_get_config(mc);
+  uint32_t max_credits = hb_mc_config_get_io_endpoint_max_out_credits(cfg);
+  int err;
 
   // Timeout is unsupported
   if (timeout != -1)
@@ -134,8 +137,16 @@ int hb_mc_platform_transmit(hb_mc_manycore_t *mc, hb_mc_packet_t *packet, hb_mc_
     return HB_MC_NOIMPL;
   }
 
-  // Write packet to the manycore bridge
-  bp_hb_write_to_manycore_bridge(packet);
+  int credits_used;
+  do {
+    err = bp_hb_get_credits_used(&credits_used);
+  } while ((err != HB_MC_SUCCESS) || (max_credits - credits_used <= 0));
+
+  err = bp_hb_write_to_mc_bridge(packet);
+  if (err != HB_MC_SUCCESS) {
+    bsg_pr_err("Write to the host request FIFO failed!");
+    return err;
+  }
 
   return HB_MC_SUCCESS;
 }
@@ -149,6 +160,7 @@ int hb_mc_platform_transmit(hb_mc_manycore_t *mc, hb_mc_packet_t *packet, hb_mc_
  */
 int hb_mc_platform_receive(hb_mc_manycore_t *mc, hb_mc_packet_t *packet, hb_mc_fifo_rx_t type, long timeout) {
   hb_mc_platform_t *platform = reinterpret_cast<hb_mc_platform_t *>(mc->platform);
+  const char *typestr = hb_mc_fifo_rx_to_string(type);
 
   // Timeout is unsupported
   if (timeout != -1)
@@ -157,11 +169,18 @@ int hb_mc_platform_receive(hb_mc_manycore_t *mc, hb_mc_packet_t *packet, hb_mc_f
     return HB_MC_INVALID;
   }
 
-  int err = bp_hb_read_from_manycore_bridge(packet, type);
+  int err;
+  int num_entries;
+  do {
+    err = bp_hb_get_fifo_entries(&num_entries, type);
+  } while (num_entries == 0 || err != HB_MC_SUCCESS);
 
-  if (err != 0)
-  {
-    manycore_pr_err(mc, "%s: Failed to receive packet\n", __func__);
+  if (err != HB_MC_SUCCESS)
+    return err;
+
+  err = bp_hb_read_from_mc_bridge(packet, type);
+  if (err != HB_MC_SUCCESS) {
+    bsg_pr_err("Read from the %s FIFO did not succeed", typestr);
     return HB_MC_INVALID;
   }
 
@@ -177,30 +196,41 @@ int hb_mc_platform_receive(hb_mc_manycore_t *mc, hb_mc_packet_t *packet, hb_mc_f
  */
 int hb_mc_platform_get_config_at(hb_mc_manycore_t *mc, unsigned int idx, hb_mc_config_raw_t *config) {
   hb_mc_platform_t *platform = reinterpret_cast<hb_mc_platform_t *>(mc->platform);
-  hb_mc_packet_t req_pkt, resp_pkt;
+  hb_mc_packet_t config_req_pkt, config_resp_pkt;
+  int num_entries, err;
 
   if (idx < HB_MC_CONFIG_MAX)
   {
-    req_pkt.request.x_dst = 0;
-    req_pkt.request.y_dst = 0;
-    req_pkt.request.x_src = 0;
-    req_pkt.request.y_src = 1;
-    req_pkt.request.op_v2 = HB_MC_PACKET_OP_REMOTE_LOAD;
-    req_pkt.request.payload = 0;
-    req_pkt.request.reg_id = 0;
-    req_pkt.request.addr = 0x100 + idx;
-    bp_hb_write_to_manycore_bridge(&req_pkt);
-    int err = bp_hb_read_from_manycore_bridge(&resp_pkt, HB_MC_FIFO_RX_RSP);
+    config_req_pkt.request.x_dst = (0 << 4) | 0;
+    config_req_pkt.request.y_dst = (1 << 3) | 0;
+    config_req_pkt.request.x_src = (0 << 4) | 0;
+    config_req_pkt.request.y_src = (1 << 3) | 1;
+    config_req_pkt.request.op_v2 = HB_MC_PACKET_OP_REMOTE_LOAD;
+    config_req_pkt.request.payload = 0;
+    config_req_pkt.request.reg_id = 0;
+    config_req_pkt.request.addr = MC_CONFIG_START_EPA_ADDR + idx;
+
+    // Note: Potentially dangerous to write to the FIFO without checking for credits
+    // We get back credits used and not credits remaining and without the configuration
+    // there is no way to know the credits remaining.
+    err = bp_hb_write_to_mc_bridge(&config_req_pkt);
+    if (err != HB_MC_SUCCESS) {
+      bsg_pr_err("Write to the host request FIFO failed!");
+      return err;
+    }
+
+    do {
+      err = bp_hb_get_fifo_entries(&num_entries, HB_MC_FIFO_RX_RSP);
+    } while (num_entries == 0 || err != HB_MC_SUCCESS);
+
+    err = bp_hb_read_from_mc_bridge(&config_resp_pkt, HB_MC_FIFO_RX_RSP);
     if (err != HB_MC_SUCCESS) {
       bsg_pr_err("Config read failed\n");
       return HB_MC_FAIL;
     }
 
-    uint32_t data = resp_pkt.response.data;
-    if (data != 0xFFFFFFFF)
-      *config = data;
-    else
-      *config = 0;
+    uint32_t data = config_resp_pkt.response.data;
+    *config = (data != MC_HOST_OP_FINISH_CODE) ? data : 0;
 
     return HB_MC_SUCCESS;
   }
@@ -215,14 +245,11 @@ int hb_mc_platform_get_config_at(hb_mc_manycore_t *mc, unsigned int idx, hb_mc_c
  * @return HB_MC_SUCCESS on success. Otherwise an error code defined in bsg_manycore_errno.h.
  */
 int hb_mc_platform_fence(hb_mc_manycore_t *mc, long timeout) {
-  int credits, err;
+  int credits_used, is_vacant, num_entries, err;
   uint32_t max_credits;
-  int is_vacant;
-  hb_mc_packet_t req_pkt, resp_pkt;
+  hb_mc_packet_t fence_req_pkt, fence_resp_pkt;
 
-  const hb_mc_config_t *cfg = hb_mc_manycore_get_config(mc);
   hb_mc_platform_t *platform = reinterpret_cast<hb_mc_platform_t *>(mc->platform); 
-  max_credits = hb_mc_config_get_io_endpoint_max_out_credits(cfg);
 
   if (timeout != -1) {
     manycore_pr_err(mc, "%s: Only a timeout value of -1 is supported\n", __func__);
@@ -230,22 +257,30 @@ int hb_mc_platform_fence(hb_mc_manycore_t *mc, long timeout) {
   }
 
   // Prepare host packet to query TX vacancy
-  req_pkt.request.x_dst = 0;
-  req_pkt.request.y_dst = 0;
-  req_pkt.request.x_src = 0;
-  req_pkt.request.y_src = 1;
-  req_pkt.request.op_v2 = HB_MC_PACKET_OP_REMOTE_LOAD;
-  req_pkt.request.payload = 0;
-  req_pkt.request.reg_id = 0;
-  req_pkt.request.addr = 0x300; // x86 Host address to poll tx vacancy
+  fence_req_pkt.request.x_dst = (0 << 4) | 0;
+  fence_req_pkt.request.y_dst = (1 << 3) | 0;
+  fence_req_pkt.request.x_src = (0 << 4) | 0;
+  fence_req_pkt.request.y_src = (1 << 3) | 1;
+  fence_req_pkt.request.op_v2 = HB_MC_PACKET_OP_REMOTE_LOAD;
+  fence_req_pkt.request.payload = 0;
+  fence_req_pkt.request.reg_id = 0;
+  fence_req_pkt.request.addr = MC_TX_VACANT_EPA_ADDR; // x86 Host address to poll tx vacancy
 
   do
   {
-    credits = bp_hb_get_credits();
-    bp_hb_write_to_manycore_bridge(&req_pkt);
-    err = bp_hb_read_from_manycore_bridge(&resp_pkt, HB_MC_FIFO_RX_RSP);
-    is_vacant = resp_pkt.response.data;
-  } while ((err == HB_MC_SUCCESS) && !(credits == max_credits) && (is_vacant == 1));
+    err = bp_hb_get_credits_used(&credits_used);
+    // In a real system, this function call makes no sense since we will be sending packets to the
+    // host on the network and are trying to check for credits to be zero and complete the fence.
+    // It is fine here because of the system setup.
+    err |= bp_hb_write_to_mc_bridge(&fence_req_pkt);
+
+    do {
+      err = bp_hb_get_fifo_entries(&num_entries, HB_MC_FIFO_RX_RSP);
+    } while (num_entries == 0 || err != HB_MC_SUCCESS);
+    err |= bp_hb_read_from_mc_bridge(&fence_resp_pkt, HB_MC_FIFO_RX_RSP);
+
+    is_vacant = fence_resp_pkt.response.data;
+  } while ((err != HB_MC_SUCCESS) || (credits_used != 0) || (is_vacant != 1));
 
   return err;
 }
@@ -331,27 +366,27 @@ int hb_mc_platform_log_disable(hb_mc_manycore_t *mc) {
  * @return HB_MC_SUCCESS on success. Otherwise an error code defined in bsg_manycore_errno.h.
  */        
 int hb_mc_platform_wait_reset_done(hb_mc_manycore_t *mc) {
-  hb_mc_packet_t req_pkt, resp_pkt;
-  int err;
+  hb_mc_packet_t reset_req_pkt, reset_resp_pkt;
+  int err, credits_used;
   uint32_t data;
 
-  req_pkt.request.x_src = 0;
-  req_pkt.request.y_src = 1;
-  req_pkt.request.x_dst = 0;
-  req_pkt.request.y_dst = 0;
-  req_pkt.request.op_v2 = HB_MC_PACKET_OP_REMOTE_LOAD;
-  req_pkt.request.payload = 0;
-  req_pkt.request.reg_id = 0;
-  req_pkt.request.addr = 0x200;
+  reset_req_pkt.request.x_dst = (0 << 4) | 0;
+  reset_req_pkt.request.y_dst = (1 << 3) | 0;
+  reset_req_pkt.request.x_src = (0 << 4) | 0;
+  reset_req_pkt.request.y_src = (1 << 3) | 1;
+  reset_req_pkt.request.op_v2 = HB_MC_PACKET_OP_REMOTE_LOAD;
+  reset_req_pkt.request.payload = 0;
+  reset_req_pkt.request.reg_id = 0;
+  reset_req_pkt.request.addr = MC_RESET_DONE_EPA_ADDR;
 
   do {
-    bp_hb_write_to_manycore_bridge(&req_pkt);
-    err = bp_hb_read_from_manycore_bridge(&resp_pkt, HB_MC_FIFO_RX_RSP);
-    data = resp_pkt.response.data;
-  } while((err != HB_MC_SUCCESS) && (data != 1));
+    // The platform setup ensures that this packet will not go over the network so
+    // we don't need to check for credits.
+    err = bp_hb_write_to_mc_bridge(&reset_req_pkt);
+    err |= bp_hb_read_from_mc_bridge(&reset_resp_pkt, HB_MC_FIFO_RX_RSP);
 
-  if (data == 0)
-    return HB_MC_FAIL;
+    data = reset_resp_pkt.response.data;
+  } while((err != HB_MC_SUCCESS) || (data == 0));
 
   return HB_MC_SUCCESS;
 }

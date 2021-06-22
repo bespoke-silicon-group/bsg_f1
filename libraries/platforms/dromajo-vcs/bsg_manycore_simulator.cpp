@@ -43,7 +43,6 @@ extern "C" {
 int _argc;
 char **_argv;
 static int char_index = 0;
-int idx = 0;
 
 ////////////////////////////// SimulationWrapper functions //////////////////////////////
 
@@ -59,7 +58,7 @@ SimulationWrapper::SimulationWrapper(){
   dpi_init();
 
   if ((!dromajo) || (!dpi)) {
-    bsg_pr_err("Failed to initialize DPI pointer\n");
+    bsg_pr_err("Failed to initialize DPI or Dromajo pointer\n");
   }
 }
 
@@ -199,10 +198,7 @@ int SimulationWrapper::dromajo_init() {
 bool SimulationWrapper::dromajo_step() {
   // Execute dromajo with verbose mode on
   int err = dromajo_cosim_step(dromajo, 0, 0, 0, 0, 0, false, false);
-  if (err != 0)
-    return false;
-  else
-    return true;
+  return (err != 0) ? false : true;
 }
 
 /*
@@ -228,85 +224,125 @@ int SimulationWrapper::dromajo_transmit_packet() {
     dromajo_to_mc_packet.words[3] = host_to_mc_req_fifo->fifo[3].front();
 
     // Intercept packets that are for the host and generate appropriate responses
-    if ((dromajo_to_mc_packet.request.x_dst == 0) && (dromajo_to_mc_packet.request.y_dst == 0)) {
+    if ((dromajo_to_mc_packet.request.x_dst == ((0 << 4) | 0)) && (dromajo_to_mc_packet.request.y_dst == ((1 << 3) | 0))) {
       host_to_dromajo_packet.response.x_dst = dromajo_to_mc_packet.request.x_src;
       host_to_dromajo_packet.response.y_dst = dromajo_to_mc_packet.request.y_src;
       host_to_dromajo_packet.response.load_id = 0;
 
-      if (dromajo_to_mc_packet.request.op_v2 == HB_MC_PACKET_OP_REMOTE_LOAD) {
-        host_to_dromajo_packet.response.op = dromajo_to_mc_packet.request.op_v2;
-        uint32_t idx = dromajo_to_mc_packet.request.addr;
-        uint32_t data = 0;
+      uint32_t data = 0;
+      switch (dromajo_to_mc_packet.request.op_v2) {
+        case HB_MC_PACKET_OP_REMOTE_LOAD:
+        {
+          // Fixme: Is there no struct for response opcode like in the manycore hardware
+          host_to_dromajo_packet.response.op = dromajo_to_mc_packet.request.op_v2;
+          switch (dromajo_to_mc_packet.request.addr) {
+            case MC_ARGS_START_EPA_ADDR ... MC_ARGS_FINISH_EPA_ADDR:
+            {
+              uint32_t idx = dromajo_to_mc_packet.request.addr - MC_ARGS_START_EPA_ADDR;
+              int num_characters = 0;
+              // If all arguments have been read or there are no arguments to read
+              // send a finish code
+              if ((idx != _argc) && (_argc != 0)) {
+                // Copy 4 bytes of the arguments
+                for(int i = 0; i < 4; i++) {
+                  if (_argv[idx][char_index] != '\0') {
+                    data = (data << 8) | _argv[idx][char_index];
+                    num_characters++;
+                    char_index++;
+                  }
+                  else {
+                    data = (data << (4 - num_characters) * 8);
+                    char_index = 0;
+                  }
+                }
+              }
+              else
+                data = MC_HOST_OP_FINISH_CODE;
+            }
+            break;
+            case MC_CONFIG_START_EPA_ADDR ... MC_CONFIG_FINISH_EPA_ADDR:
+            {
+              uint32_t idx = dromajo_to_mc_packet.request.addr - MC_CONFIG_START_EPA_ADDR;
+              data = (idx <= HB_MC_CONFIG_MAX) ? dpi->config[idx] : MC_HOST_OP_FINISH_CODE;
+            }
+            break;
+            case MC_RESET_DONE_EPA_ADDR:
+            {
+              bool done;
+              dpi->reset_is_done(done);
+              data = done ? 1 : 0;
+            }
+            break;
+            case MC_TX_VACANT_EPA_ADDR:
+            {
+              bool is_vacant;
+              dpi->tx_is_vacant(is_vacant);
+              data = is_vacant ? 1 : 0;
+            }
+            break;
+            default:
+            {
+              bsg_pr_err("Invalid address for host load operation\n");
+              return HB_MC_FAIL;
+            }
 
-        // If EPA maps to reading arguments
-        if (dromajo_to_mc_packet.request.addr >= 0 && dromajo_to_mc_packet.request.addr <= 0xFF) {
-          int num_characters = 0;
-          // If all arguments have been read or there are no arguments to read
-          // send a finish code
-          if ((idx == _argc) || (_argc == 0)) {
-            data = 0xFFFFFFFF;
           }
-          else {
-            // Copy 4 bytes of the arguments
-            for(int i = 0; i < 4; i++) {
-              if (_argv[idx][char_index] != '\0') {
-                data = (data << 8) | _argv[idx][char_index];
-                num_characters++;
-                char_index++;
-              }
-              else {
-                data = (data << (4 - num_characters) * 8);
-                char_index = 0;
-              }
+          host_to_dromajo_packet.response.data = data;
+          for(int j = 0; j < 4; j++) {
+            mc_to_host_resp_fifo->fifo[j].push(host_to_dromajo_packet.words[j]);
+            host_to_mc_req_fifo->fifo[j].pop();
+          }
+        }
+        break;
+        case HB_MC_PACKET_OP_REMOTE_SW:
+        {
+          switch (dromajo_to_mc_packet.request.addr) {
+            case MC_STDOUT_EPA_ADDR:
+            case MC_STDERR_EPA_ADDR:
+              printf("%c", (uint8_t) dromajo_to_mc_packet.request.payload);
+            break;
+            case MC_FINISH_EPA_ADDR:
+            {
+              int16_t core_id = dromajo_to_mc_packet.request.payload >> 16;
+              // Success error codes in BP is 0, but 0 is already used by the manycore. Any positive number indicates
+              // success, therefore, add 1.
+              int err = (0x0000FFFF & dromajo_to_mc_packet.request.payload) + 1;
+              bsg_pr_info("Core %d successfully terminated\n", core_id);
+              // De-allocate all pointers prior to termination
+              dpi_cleanup();
+              dromajo_cosim_fini(dromajo);
+              return err;
+            }
+            break;
+            case MC_FAIL_EPA_ADDR:
+            {
+              int16_t core_id = dromajo_to_mc_packet.request.payload >> 16;
+              int16_t err = 0x0000FFFF & dromajo_to_mc_packet.request.payload;
+              bsg_pr_err("Core %d terminated with code %d\n", core_id, err);
+              // De-allocate all pointers prior to termination
+              dpi_cleanup();
+              dromajo_cosim_fini(dromajo);
+              return err;
+            }
+            break;
+            default:
+            {
+              bsg_pr_err("Invalid address for host store operation\n");
+              return HB_MC_FAIL;
             }
           }
+          // Store requests don't have responses so only pop the host to MC fifo
+          for(int j = 0; j < 4; j++) {
+            host_to_mc_req_fifo->fifo[j].pop();
+          }
         }
-
-        // Dromajo/BlackParrot wants to read the config
-        else if (dromajo_to_mc_packet.request.addr >= 0x100 && dromajo_to_mc_packet.request.addr <= 0x1FF) {
-          idx = dromajo_to_mc_packet.request.addr - 0x100;
-          if (idx <= HB_MC_CONFIG_MAX)
-            data = dpi->config[idx];
-          else
-            data = 0xFFFFFFFF;
-        }
-
-        // Dromajo/BlackParrot wants to know if reset is done
-        else if (dromajo_to_mc_packet.request.addr == 0x200) {
-          bool done;
-          dpi->reset_is_done(done);
-          if (done)
-            data = 1;
-          else
-            data = 0;
-        }
-
-        // Dromajo/BlackParrot wants to know if the TX FIFO is vacant
-        else if (dromajo_to_mc_packet.request.addr == 0x300) {
-          bool is_vacant;
-          dpi->tx_is_vacant(is_vacant);
-          if (is_vacant)
-            data = 1;
-          else
-            data = 0;
-        }
-
-        else {
-          bsg_pr_err("Host EPA not mapped\n");
+        break;
+        default:
+        {
+          bsg_pr_err("Operations other than loads and store words are not implemented for the host\n");
           return HB_MC_FAIL;
         }
-
-        host_to_dromajo_packet.response.data = data;
-        // Inject the response packet into manycore response FIFO
-        // Pop the request FIFO
-        for(int j = 0; j < 4; j++) {
-          mc_to_host_resp_fifo->fifo[j].push(host_to_dromajo_packet.words[j]);
-          host_to_mc_req_fifo->fifo[j].pop();
-        }
-      }
-      else {
-        bsg_pr_err("Operations other than loads are not implemented for the host\n");
-        return HB_MC_FAIL;
+        break;
       }
     }
     else {
@@ -334,7 +370,6 @@ int SimulationWrapper::dromajo_transmit_packet() {
            err == BSG_NONSYNTH_DPI_BUSY       ||
            err == BSG_NONSYNTH_DPI_NOT_READY));
 
-      // Pop the FIFO once transmitted
       if (err == BSG_NONSYNTH_DPI_SUCCESS) {
         for (int i = 0;i < 4; i++)
           host_to_mc_req_fifo->fifo[i].pop();
@@ -343,6 +378,12 @@ int SimulationWrapper::dromajo_transmit_packet() {
         bsg_pr_err("Packet transmission failed\n");
         return HB_MC_FAIL;
       }
+
+      // Update the credits in dromajo
+      bsg_pr_dbg("Checking for credits\n");
+      err = dromajo_set_credits();
+      if (err != HB_MC_SUCCESS)
+        return err;
     }
   }
 
@@ -436,33 +477,29 @@ int SimulationWrapper::dromajo_set_credits() {
 }
 
 int SimulationWrapper::eval(){
-  // Execute one instruction on Dromajo
-  if (!dromajo_step()) {
-    // Fixme: Dromajo could also terminate due to premature errors.
-    // Use the test outputs to detect PASS/FAIL
-    bsg_pr_info("Dromajo Execution Complete!\nExiting...\n");
-    dromajo_cosim_fini(dromajo);
-    return HB_MC_SUCCESS;
+  // Execute 100 instructions on Dromajo
+  for(int i = 0; i < NUM_DROMAJO_INSTR_PER_TICK; i++) {
+    if (!dromajo_step()) {
+      // Fixme: Dromajo could also terminate due to premature errors.
+      // Use the test outputs to detect PASS/FAIL
+      bsg_pr_info("Dromajo Execution Complete!\nExiting...\n");
+      dromajo_cosim_fini(dromajo);
+      return HB_MC_SUCCESS;
+    }
+
+    int err;
+    // Poll for packets to be transmitted
+    bsg_pr_dbg("Checking for packets to transmit\n");
+    err = dromajo_transmit_packet();
+    if (err != HB_MC_SUCCESS)
+      return err;
+
+    // Poll for packets to be received
+    bsg_pr_dbg("Checking for packets to receive\n");
+    err = dromajo_receive_packet();
+    if (err != HB_MC_SUCCESS)
+      return err;
   }
-
-  int err;
-  // Poll for packets to be transmitted
-  bsg_pr_dbg("Checking for packets to transmit\n");
-  err = dromajo_transmit_packet();
-  if (err != HB_MC_SUCCESS)
-    return err;
-
-  // Poll for packets to be received
-  bsg_pr_dbg("Checking for packets to receive\n");
-  err = dromajo_receive_packet();
-  if (err != HB_MC_SUCCESS)
-    return err;
-
-  // Update the credits in dromajo
-  bsg_pr_dbg("Checking for credits\n");
-  err = dromajo_set_credits();
-  if (err != HB_MC_SUCCESS)
-    return err;
 
   // Advance time 1 unit
   advance_time();
@@ -555,7 +592,9 @@ int vcs_main(int argc, char **argv) {
   int err;
   do {
     err = host->eval();
-  } while (err == HB_MC_SUCCESS);
+    // Codes greater than 0 can be used to terminate a program
+    if (err > 0) break;
+  } while (err >= 0);
 
   return err;
 }
@@ -579,7 +618,7 @@ extern "C" {
 
           int rc = vcs_main(argc, argv);
           *exit_code = rc;
-          bsg_pr_test_pass_fail(rc == HB_MC_SUCCESS);
+          bsg_pr_test_pass_fail(rc >= HB_MC_SUCCESS);
           return;
   }
 }
