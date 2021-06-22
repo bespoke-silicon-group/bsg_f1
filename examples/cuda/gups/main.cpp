@@ -98,7 +98,7 @@ int Main(int argc, char *argv[])
     
     // prime X
     bsg_pr_dbg("Priming X\n");
-    HB->push_job(Dim(cl->cores(),1), Dim(1,1), "prime", X_dev, cl->updates());
+    HB->push_job(Dim(cl->cores(),1), Dim(1,1), "prime", X_dev, cl->updates_per_core());
     HB->exec();
     
     // setup A
