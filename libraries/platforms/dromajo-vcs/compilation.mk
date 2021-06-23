@@ -39,11 +39,15 @@ DEFINES    += -D_DRAMFS
 INCLUDES   += -I$(LIBRARIES_PATH)
 INCLUDES   += -I$(BSG_PLATFORM_PATH)
 INCLUDES   += -I$(BSG_PLATFORM_PATH)/software/include
-INCLUDES   += -I$(BLACKPARROT_DIR)/sdk/perch
+INCLUDES   += -I$(BLACKPARROT_SDK_DIR)/perch
 
 CXXFLAGS   += $(DEFINES) -march=rv64imafd -mabi=lp64 -mcmodel=medany
 CFLAGS     += $(DEFINES) -march=rv64imafd -mabi=lp64 -mcmodel=medany
 SFLAGS     += $(DEFINES) -march=rv64imafd -mabi=lp64 -mcmodel=medany
+
+CC ?= $(BLACKPARROT_SDK_DIR)/install/bin/riscv64-unknown-elf-dramfs-gcc
+CXX ?= $(BLACKPARROT_SDK_DIR)/install/bin/riscv64-unknown-elf-dramfs-g++
+OBJDUMP ?= $(BLACKPARROT_SDK_DIR)/install/bin/riscv64-unknown-elf-dramfs-objdump
 
 # each regression target needs to build its .o from a .c and .h of the
 # same name
@@ -57,10 +61,14 @@ SFLAGS     += $(DEFINES) -march=rv64imafd -mabi=lp64 -mcmodel=medany
 %.o: %.S
 	$(CC) -c -o $@ $< $(INCLUDES) $(SFLAGS)
 
+%.dis: %.elf
+	$(OBJDUMP) -d $^ > $@
+
 .PRECIOUS: %.o
 
 .PHONY: platform.compilation.clean
 platform.compilation.clean:
 	rm -rf *.o
+	rm -rf *.dis
 
 compilation.clean: platform.compilation.clean

@@ -29,7 +29,7 @@ _start:
   sub  sp, sp, t0
 
 # Setup mtvec
-  la t0, bp_mtvec_handler
+  la t0, __mtvec_handler
   csrw mtvec, t0
 
 # Enable FPU

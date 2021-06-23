@@ -179,7 +179,7 @@ int SimulationWrapper::dromajo_init() {
   sprintf(dromajo_str, "dromajo");
   sprintf(host_str, "--host");
   sprintf(manycore_str, "--manycore");
-  sprintf(prog_str, "test.elf");
+  sprintf(prog_str, "main.elf");
 
   char* argv[] = {dromajo_str, host_str, manycore_str, prog_str};
   dromajo = dromajo_cosim_init(4, argv);

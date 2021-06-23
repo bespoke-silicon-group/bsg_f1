@@ -11,7 +11,7 @@ extern "C" {
 #endif
 
 #include <stdint.h>
-#include "bsg_newlib_intf.h"
+#include <bsg_newlib_intf.h>
 #include <bsg_manycore.h>
 
 // Memory mapped addresses to interact with the host

@@ -26,11 +26,12 @@
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 # RISC-V tools
-RV_CC = $(BLACKPARROT_DIR)/sdk/install/bin/riscv64-unknown-elf-dramfs-gcc
-RV_CXX = $(BLACKPARROT_DIR)/sdk/install/bin/riscv64-unknown-elf-dramfs-g++
-RV_AR = $(BLACKPARROT_DIR)/sdk/install/bin/riscv64-unknown-elf-dramfs-ar
+RV_CC = $(BLACKPARROT_SDK_DIR)/install/bin/riscv64-unknown-elf-dramfs-gcc
+RV_CXX = $(BLACKPARROT_SDK_DIR)/install/bin/riscv64-unknown-elf-dramfs-g++
+RV_AR = $(BLACKPARROT_SDK_DIR)/install/bin/riscv64-unknown-elf-dramfs-ar
+RV_OBJDUMP = $(BLACKPARROT_SDK_DIR)/install/bin/riscv64-unknown-elf-dramfs-objdump
 
-DROMAJO_DIR = $(BLACKPARROT_DIR)/sdk/dromajo
+DROMAJO_DIR = $(BLACKPARROT_SDK_DIR)/dromajo
 
 LIB_CXXSOURCES += $(LIBRARIES_PATH)/features/tracer/noimpl/bsg_manycore_tracer.cpp
 LIB_CXXSOURCES += $(LIBRARIES_PATH)/features/profiler/noimpl/bsg_manycore_profiler.cpp
@@ -49,12 +50,12 @@ LIB_CSOURCES += $(BSG_PLATFORM_PATH)/software/src/argp/argp-pvh.c
 LIB_CSOURCES += $(BSG_PLATFORM_PATH)/software/src/argp/argp-xinl.c
 LIB_CSOURCES += $(BSG_PLATFORM_PATH)/software/src/bp_utils.c
 LIB_CSOURCES += $(BSG_PLATFORM_PATH)/software/src/args.c
-LIB_CSOURCES += $(BLACKPARROT_DIR)/sdk/perch/bsg_newlib_intf.c
-LIB_CSOURCES += $(BLACKPARROT_DIR)/sdk/perch/emulation.c
+LIB_CSOURCES += $(BLACKPARROT_SDK_DIR)/perch/bsg_newlib_intf.c
+LIB_CSOURCES += $(BLACKPARROT_SDK_DIR)/perch/emulation.c
 
-LIB_SSOURCES += $(BLACKPARROT_DIR)/sdk/perch/atomics.S
-LIB_SSOURCES += $(BLACKPARROT_DIR)/sdk/perch/exception.S
-LIB_SSOURCES += $(BLACKPARROT_DIR)/sdk/perch/muldiv.S
+LIB_SSOURCES += $(BLACKPARROT_SDK_DIR)/perch/atomics.S
+LIB_SSOURCES += $(BLACKPARROT_SDK_DIR)/perch/exception.S
+LIB_SSOURCES += $(BLACKPARROT_SDK_DIR)/perch/muldiv.S
 LIB_SSOURCES += $(BSG_PLATFORM_PATH)/software/src/crt0.S
 
 # For now, use the noimpl version of the features
@@ -66,7 +67,7 @@ $(DMA_FEATURE_OBJECTS): CXXFLAGS += -march=rv64imafd -mcmodel=medany -mabi=lp64 
 
 # Add the riscv-newlib specific includes for the library
 LIB_PLATFORM_INCLUDES =  -I$(BSG_PLATFORM_PATH)/software/include
-LIB_PLATFORM_INCLUDES += -I$(BLACKPARROT_DIR)/sdk/perch
+LIB_PLATFORM_INCLUDES += -I$(BLACKPARROT_SDK_DIR)/perch
 
 $(LIB_OBJECTS) $(LIB_OBJECTS_CUDA_POD_REPL) $(LIB_OBJECTS_REGRESSION): CC = $(RV_CC)
 $(LIB_OBJECTS) $(LIB_OBJECTS_CUDA_POD_REPL) $(LIB_OBJECTS_REGRESSION): CXX = $(RV_CXX)
@@ -76,9 +77,10 @@ $(BSG_PLATFORM_PATH)/libbsgmc_cuda_legacy_pod_repl.a: AR = $(RV_AR)
 $(BSG_PLATFORM_PATH)/libbsg_manycore_regression.a: AR = $(RV_AR)
 
 # Make the litteFS file system
+$(BSG_PLATFORM_PATH)/lfs.o: MKLFS = $(BLACKPARROT_SDK_DIR)/install/bin/dramfs_mklfs 128 64
 $(BSG_PLATFORM_PATH)/lfs.o:
-	$(MAKE) -C $(BLACKPARROT_DIR)/sdk/bp-tests lfs.cpp
-	$(CXX) $(BLACKPARROT_DIR)/sdk/bp-tests/lfs.cpp -c -o $@ $(CXXFLAGS) $(INCLUDES)
+	$(MKLFS) > $(BSG_PLATFORM_PATH)/lfs.cpp
+	$(CXX) $(BSG_PLATFORM_PATH)/lfs.cpp -c -o $@ $(CXXFLAGS) $(INCLUDES)
 
 include $(LIBRARIES_PATH)/features/dma/simulation/dramsim3.mk
 include $(LIBRARIES_PATH)/features/dma/simulation/libdmamem.mk
@@ -123,7 +125,7 @@ $(PLATFORM_OBJECTS): INCLUDES += -I$(BSG_PLATFORM_PATH)
 $(PLATFORM_OBJECTS): INCLUDES += -I$(VCS_HOME)/linux64/lib/
 $(PLATFORM_OBJECTS): INCLUDES += -I$(BSG_MANYCORE_DIR)/testbenches/dpi/
 $(PLATFORM_OBJECTS): INCLUDES += -I$(BASEJUMP_STL_DIR)/bsg_test/
-$(PLATFORM_OBJECTS): INCLUDES += -I$(BLACKPARROT_DIR)/sdk/dromajo/include
+$(PLATFORM_OBJECTS): INCLUDES += -I$(BLACKPARROT_SDK_DIR)/dromajo/include
 $(PLATFORM_OBJECTS): CFLAGS   := -std=c11 -fPIC -DVCS -D_GNU_SOURCE -DVERILATOR -D_BSD_SOURCE -D_XOPEN_SOURCE=500
 $(PLATFORM_OBJECTS): CXXFLAGS := -std=c++11 -fPIC -DVCS -D_GNU_SOURCE -DVERILATOR -D_BSD_SOURCE -D_XOPEN_SOURCE=500
 $(PLATFORM_OBJECTS): LDFLAGS  := -fPIC
