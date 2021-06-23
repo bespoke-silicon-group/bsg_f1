@@ -130,17 +130,6 @@ extern ssize_t __argp_fmtstream_printf (argp_fmtstream_t __fs,
 extern ssize_t argp_fmtstream_printf (argp_fmtstream_t __fs,
 				      __const char *__fmt, ...)
      __attribute__ ((__format__ (printf, 2, 3)));
-
-extern int __argp_fmtstream_putc (argp_fmtstream_t __fs, int __ch);
-extern int argp_fmtstream_putc (argp_fmtstream_t __fs, int __ch);
-
-extern int __argp_fmtstream_puts (argp_fmtstream_t __fs, __const char *__str);
-extern int argp_fmtstream_puts (argp_fmtstream_t __fs, __const char *__str);
-
-extern size_t __argp_fmtstream_write (argp_fmtstream_t __fs,
-				      __const char *__str, size_t __len);
-extern size_t argp_fmtstream_write (argp_fmtstream_t __fs,
-				    __const char *__str, size_t __len);
 
 /* Access macros for various bits of state.  */
 #define argp_fmtstream_lmargin(__fs) ((__fs)->lmargin)
@@ -150,35 +139,12 @@ extern size_t argp_fmtstream_write (argp_fmtstream_t __fs,
 #define __argp_fmtstream_rmargin argp_fmtstream_rmargin
 #define __argp_fmtstream_wmargin argp_fmtstream_wmargin
 
-/* Set __FS's left margin to LMARGIN and return the old value.  */
-extern size_t argp_fmtstream_set_lmargin (argp_fmtstream_t __fs,
-					  size_t __lmargin);
-extern size_t __argp_fmtstream_set_lmargin (argp_fmtstream_t __fs,
-					    size_t __lmargin);
-
-/* Set __FS's right margin to __RMARGIN and return the old value.  */
-extern size_t argp_fmtstream_set_rmargin (argp_fmtstream_t __fs,
-					  size_t __rmargin);
-extern size_t __argp_fmtstream_set_rmargin (argp_fmtstream_t __fs,
-					    size_t __rmargin);
-
-/* Set __FS's wrap margin to __WMARGIN and return the old value.  */
-extern size_t argp_fmtstream_set_wmargin (argp_fmtstream_t __fs,
-					  size_t __wmargin);
-extern size_t __argp_fmtstream_set_wmargin (argp_fmtstream_t __fs,
-					    size_t __wmargin);
-
-/* Return the column number of the current output point in __FS.  */
-extern size_t argp_fmtstream_point (argp_fmtstream_t __fs);
-extern size_t __argp_fmtstream_point (argp_fmtstream_t __fs);
-
 /* Internal routines.  */
 extern void _argp_fmtstream_update (argp_fmtstream_t __fs);
 extern void __argp_fmtstream_update (argp_fmtstream_t __fs);
 extern int _argp_fmtstream_ensure (argp_fmtstream_t __fs, size_t __amount);
 extern int __argp_fmtstream_ensure (argp_fmtstream_t __fs, size_t __amount);
 
-#ifdef __OPTIMIZE__
 /* Inline versions of above routines.  */
 
 #if !_LIBC
@@ -193,13 +159,7 @@ extern int __argp_fmtstream_ensure (argp_fmtstream_t __fs, size_t __amount);
 #define __argp_fmtstream_ensure _argp_fmtstream_ensure
 #endif
 
-#ifndef ARGP_FS_EI
-#define ARGP_FS_EI extern inline
-#endif
-
-ARGP_FS_EI size_t
-__argp_fmtstream_write (argp_fmtstream_t __fs,
-			__const char *__str, size_t __len)
+static inline size_t __argp_fmtstream_write (argp_fmtstream_t __fs, __const char *__str, size_t __len)
 {
   if (__fs->p + __len <= __fs->end || __argp_fmtstream_ensure (__fs, __len))
     {
@@ -211,8 +171,7 @@ __argp_fmtstream_write (argp_fmtstream_t __fs,
     return 0;
 }
 
-ARGP_FS_EI int
-__argp_fmtstream_puts (argp_fmtstream_t __fs, __const char *__str)
+static inline int __argp_fmtstream_puts (argp_fmtstream_t __fs, __const char *__str)
 {
   size_t __len = strlen (__str);
   if (__len)
@@ -224,8 +183,7 @@ __argp_fmtstream_puts (argp_fmtstream_t __fs, __const char *__str)
     return 0;
 }
 
-ARGP_FS_EI int
-__argp_fmtstream_putc (argp_fmtstream_t __fs, int __ch)
+static inline int __argp_fmtstream_putc (argp_fmtstream_t __fs, int __ch)
 {
   if (__fs->p < __fs->end || __argp_fmtstream_ensure (__fs, 1))
     return *__fs->p++ = __ch;
@@ -233,9 +191,8 @@ __argp_fmtstream_putc (argp_fmtstream_t __fs, int __ch)
     return EOF;
 }
 
-/* Set __FS's left margin to __LMARGIN and return the old value.  */
-ARGP_FS_EI size_t
-__argp_fmtstream_set_lmargin (argp_fmtstream_t __fs, size_t __lmargin)
+/* Set __FS's left margin to LMARGIN and return the old value.  */
+static inline size_t __argp_fmtstream_set_lmargin (argp_fmtstream_t __fs, size_t __lmargin)
 {
   size_t __old;
   if ((size_t) (__fs->p - __fs->buf) > __fs->point_offs)
@@ -246,8 +203,7 @@ __argp_fmtstream_set_lmargin (argp_fmtstream_t __fs, size_t __lmargin)
 }
 
 /* Set __FS's right margin to __RMARGIN and return the old value.  */
-ARGP_FS_EI size_t
-__argp_fmtstream_set_rmargin (argp_fmtstream_t __fs, size_t __rmargin)
+static inline size_t __argp_fmtstream_set_rmargin (argp_fmtstream_t __fs, size_t __rmargin)
 {
   size_t __old;
   if ((size_t) (__fs->p - __fs->buf) > __fs->point_offs)
@@ -257,9 +213,8 @@ __argp_fmtstream_set_rmargin (argp_fmtstream_t __fs, size_t __rmargin)
   return __old;
 }
 
-/* Set FS's wrap margin to __WMARGIN and return the old value.  */
-ARGP_FS_EI size_t
-__argp_fmtstream_set_wmargin (argp_fmtstream_t __fs, size_t __wmargin)
+/* Set __FS's wrap margin to __WMARGIN and return the old value.  */
+static inline size_t __argp_fmtstream_set_wmargin (argp_fmtstream_t __fs, size_t __wmargin)
 {
   size_t __old;
   if ((size_t) (__fs->p - __fs->buf) > __fs->point_offs)
@@ -270,8 +225,7 @@ __argp_fmtstream_set_wmargin (argp_fmtstream_t __fs, size_t __wmargin)
 }
 
 /* Return the column number of the current output point in __FS.  */
-ARGP_FS_EI size_t
-__argp_fmtstream_point (argp_fmtstream_t __fs)
+static inline size_t __argp_fmtstream_point (argp_fmtstream_t __fs)
 {
   if ((size_t) (__fs->p - __fs->buf) > __fs->point_offs)
     __argp_fmtstream_update (__fs);
@@ -289,8 +243,6 @@ __argp_fmtstream_point (argp_fmtstream_t __fs)
 #undef __argp_fmtstream_update
 #undef __argp_fmtstream_ensure
 #endif
-
-#endif /* __OPTIMIZE__ */
 
 #endif /* ARGP_FMTSTREAM_USE_LINEWRAP */
 
