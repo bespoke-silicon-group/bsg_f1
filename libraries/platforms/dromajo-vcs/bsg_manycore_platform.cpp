@@ -120,7 +120,7 @@ int hb_mc_platform_transmit(hb_mc_manycore_t *mc, hb_mc_packet_t *packet, hb_mc_
   hb_mc_platform_t *platform = reinterpret_cast<hb_mc_platform_t *>(mc->platform);
   const char *typestr = hb_mc_fifo_tx_to_string(type);
   const hb_mc_config_t *cfg = hb_mc_manycore_get_config(mc);
-  uint32_t max_credits = hb_mc_config_get_io_endpoint_max_out_credits(cfg);
+  uint32_t max_credits = hb_mc_config_get_transmit_vacancy_max(cfg);
   int err;
 
   // Timeout is unsupported
@@ -140,7 +140,7 @@ int hb_mc_platform_transmit(hb_mc_manycore_t *mc, hb_mc_packet_t *packet, hb_mc_
   int credits_used;
   do {
     err = bp_hb_get_credits_used(&credits_used);
-  } while ((err != HB_MC_SUCCESS) || (max_credits - credits_used <= 0));
+  } while ((err != HB_MC_SUCCESS) || ((max_credits - credits_used) <= 0));
 
   err = bp_hb_write_to_mc_bridge(packet);
   if (err != HB_MC_SUCCESS) {
@@ -276,11 +276,11 @@ int hb_mc_platform_fence(hb_mc_manycore_t *mc, long timeout) {
 
     do {
       err = bp_hb_get_fifo_entries(&num_entries, HB_MC_FIFO_RX_RSP);
-    } while (num_entries == 0 || err != HB_MC_SUCCESS);
-    err |= bp_hb_read_from_mc_bridge(&fence_resp_pkt, HB_MC_FIFO_RX_RSP);
+    } while ((num_entries == 0) && (err == HB_MC_SUCCESS));
 
+    err |= bp_hb_read_from_mc_bridge(&fence_resp_pkt, HB_MC_FIFO_RX_RSP);
     is_vacant = fence_resp_pkt.response.data;
-  } while ((err != HB_MC_SUCCESS) || (credits_used != 0) || (is_vacant != 1));
+  } while ((err == HB_MC_SUCCESS) && !((credits_used == 0) && is_vacant));
 
   return err;
 }

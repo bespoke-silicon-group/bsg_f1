@@ -14,7 +14,7 @@
 int bp_hb_get_credits_used(int *credits_used) {
 	uint32_t *bp_to_mc_req_credits_addr = (uint32_t *) (MC_BASE_ADDR + BP_TO_MC_REQ_CREDITS_ADDR);
 	if ((*credits_used = (int) *bp_to_mc_req_credits_addr) < 0) {
-		bsg_pr_err("Credits used cannot be negative. Credits = %d", *credits_used);
+		bsg_pr_err("Credits used cannot be negative. Credits used = %d", *credits_used);
 		return HB_MC_FAIL;
 	}
 	return HB_MC_SUCCESS;

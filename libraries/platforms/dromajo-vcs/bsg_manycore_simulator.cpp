@@ -380,7 +380,6 @@ int SimulationWrapper::dromajo_transmit_packet() {
       }
 
       // Update the credits in dromajo
-      bsg_pr_dbg("Checking for credits\n");
       err = dromajo_set_credits();
       if (err != HB_MC_SUCCESS)
         return err;
@@ -452,7 +451,7 @@ int SimulationWrapper::dromajo_receive_packet() {
  * for the Dromajo->Manycore request FIFO in dromajo
  */
 int SimulationWrapper::dromajo_set_credits() {
-  int credits, credits_used, max_credits;
+  int credits_used;
   int err;
 
   err = dpi->get_credits_used(credits_used);
@@ -461,17 +460,10 @@ int SimulationWrapper::dromajo_set_credits() {
     return HB_MC_FAIL;
   }
 
-  err = dpi->get_credits_max(max_credits);
-  if (err == BSG_NONSYNTH_DPI_SUCCESS) {
-    credits = max_credits - credits_used;
-    if (credits < 0)
-      bsg_pr_err("Credit value is < 0. Must be non-negative\n");
-    host_to_mc_req_fifo->credits = credits;
+  if (credits_used < 0) {
+    bsg_pr_err("Credit value is < 0. Must be non-negative\n");
   }
-  else {
-    bsg_pr_err(bsg_nonsynth_dpi_strerror(err));
-    return err;
-  }
+  host_to_mc_req_fifo->credits = credits_used;
 
   return HB_MC_SUCCESS;
 }
