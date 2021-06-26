@@ -55,7 +55,7 @@
 #endif /* _LIBC */
 
 #include <argp.h>
-#include "argp-namefrob.h"
+#include <argp-namefrob.h>
 
 /* Getopt return values.  */
 #define KEY_END (-1)		/* The end of the options.  */

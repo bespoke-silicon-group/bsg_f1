@@ -116,7 +116,7 @@ $(BSG_PLATFORM_PATH)/test.riscv: $(BSG_PLATFORM_PATH)/lfs.o
 $(BSG_PLATFORM_PATH)/test.riscv: $(BSG_PLATFORM_PATH)/libbsg_manycore_runtime.a
 $(BSG_PLATFORM_PATH)/test.riscv: $(BSG_PLATFORM_PATH)/libbsgmc_cuda_legacy_pod_repl.a
 $(BSG_PLATFORM_PATH)/test.riscv: $(BSG_PLATFORM_PATH)/libbsg_manycore_regression.a
-$(BSG_PLATFORM_PATH)/test.riscv: LDFLAGS := -T$(BLACKPARROT_SDK_DIR)/linker/riscv.ld -L$(BSG_PLATFORM_PATH) -static -nostartfiles -lstdc++ -lbsg_manycore_runtime -lbsg_manycore_regression
+$(BSG_PLATFORM_PATH)/test.riscv: LDFLAGS := -T$(BLACKPARROT_SDK_DIR)/linker/riscv.ld -L$(BSG_PLATFORM_PATH) -static -nostartfiles -lstdc++ -lbsg_manycore_regression -lbsg_manycore_runtime
 $(BSG_PLATFORM_PATH)/test.riscv: LD = $(CXX)
 $(BSG_PLATFORM_PATH)/test.riscv:
 	$(LD) -D_DRAMFS -o $@ $(BSG_PLATFORM_PATH)/software/src/crt0.o $(BSG_PLATFORM_PATH)/lfs.o $< $(LDFLAGS)

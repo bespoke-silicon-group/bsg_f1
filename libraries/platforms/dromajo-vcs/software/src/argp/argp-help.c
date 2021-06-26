@@ -70,8 +70,8 @@ char *alloca ();
 #endif
 
 #include <argp.h>
-#include "argp-fmtstream.h"
-#include "argp-namefrob.h"
+#include <argp-fmtstream.h>
+#include <argp-namefrob.h>
 
 /* User-selectable (using an environment variable) formatting parameters.
 

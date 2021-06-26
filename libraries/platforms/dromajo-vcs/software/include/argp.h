@@ -477,10 +477,6 @@ extern void __argp_state_help (__const struct argp_state *__restrict __state,
 			       FILE *__restrict __stream,
 			       unsigned int __flags) __THROW;
 
-/* Possibly output the standard usage message for ARGP to stderr and exit.  */
-extern void argp_usage (__const struct argp_state *__state) __THROW;
-extern void __argp_usage (__const struct argp_state *__state) __THROW;
-
 /* If appropriate, print the printf string FMT and following args, preceded
    by the program name and `:', to stderr, and followed by a `Try ... --help'
    message, then exit (1).  */
@@ -508,15 +504,6 @@ extern void __argp_failure (__const struct argp_state *__restrict __state,
 			    __const char *__restrict __fmt, ...) __THROW
      __attribute__ ((__format__ (__printf__, 4, 5)));
 
-/* Returns true if the option OPT is a valid short option.  */
-extern int _option_is_short (__const struct argp_option *__opt) __THROW;
-extern int __option_is_short (__const struct argp_option *__opt) __THROW;
-
-/* Returns true if the option OPT is in fact the last (unused) entry in an
-   options array.  */
-extern int _option_is_end (__const struct argp_option *__opt) __THROW;
-extern int __option_is_end (__const struct argp_option *__opt) __THROW;
-
 /* Return the input field for ARGP in the parser corresponding to STATE; used
    by the help routines.  */
 extern void *_argp_input (__const struct argp *__restrict __argp,
@@ -526,7 +513,10 @@ extern void *__argp_input (__const struct argp *__restrict __argp,
 			   __const struct argp_state *__restrict __state)
      __THROW;
 
-#ifdef __USE_EXTERN_INLINES
+// Always define functions in a header file with the static modifier.
+// Defining functions with "extern inline" in a header file is just wrong.
+// Switch to using "static inline" to make the function visible wherever
+// this header file is included
 
 # if !_LIBC
 #  define __argp_usage argp_usage
@@ -535,17 +525,15 @@ extern void *__argp_input (__const struct argp *__restrict __argp,
 #  define __option_is_end _option_is_end
 # endif
 
-# ifndef ARGP_EI
-#  define ARGP_EI extern __inline__
-# endif
-
-ARGP_EI void
+/* Possibly output the standard usage message for ARGP to stderr and exit.  */
+static inline void
 __argp_usage (__const struct argp_state *__state) __THROW
 {
   __argp_state_help (__state, stderr, ARGP_HELP_STD_USAGE);
 }
 
-ARGP_EI int
+/* Returns true if the option OPT is a valid short option.  */
+static inline int
 __option_is_short (__const struct argp_option *__opt) __THROW
 {
   if (__opt->flags & OPTION_DOC)
@@ -557,7 +545,9 @@ __option_is_short (__const struct argp_option *__opt) __THROW
     }
 }
 
-ARGP_EI int
+/* Returns true if the option OPT is in fact the last (unused) entry in an
+   options array.  */
+static inline int
 __option_is_end (__const struct argp_option *__opt) __THROW
 {
   return !__opt->key && !__opt->name && !__opt->doc && !__opt->group;
@@ -569,7 +559,6 @@ __option_is_end (__const struct argp_option *__opt) __THROW
 #  undef __option_is_short
 #  undef __option_is_end
 # endif
-#endif /* Use extern inlines.  */
 
 #ifdef  __cplusplus
 }
