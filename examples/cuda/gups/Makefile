@@ -45,6 +45,14 @@ $(eval MAKE_ARGS += BSG_MANYCORE_KERNELS=$(EXAMPLES_PATH)/cuda/gups/$1/main.risc
 endef
 
 TESTS_DISASSEMBLY = $(addsuffix .dis,$(TESTS))
+TESTS_BLOOD_GRAPH = $(addsuffix .blood_graph,$(TESTS))
+
+$(TESTS_BLOOD_GRAPH):
+	$(eval t=$(firstword $(subst ., ,$@)))
+	$(call set-submake-args,$t)
+	mkdir -p $t/
+	cp template.mk $t/Makefile
+	$(MAKE) -C $t $(MAKE_ARGS) blood_graph
 
 $(TESTS_DISASSEMBLY):
 	$(eval t=$(firstword $(subst ., ,$@)))
@@ -67,6 +75,7 @@ exec:      $(filter %__exec_run,$(TESTS))
 saifgen:   $(filter %__saifgen_run,$(TESTS))
 
 dis: $(TESTS_DISASSEMBLY)
+blood_graph: $(TESTS_BLOOD_GRAPH)
 
 purge:
 	rm -rf $(TESTS)
