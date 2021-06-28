@@ -299,7 +299,10 @@ int SimulationWrapper::dromajo_transmit_packet() {
           switch (dromajo_to_mc_packet.request.addr) {
             case MC_STDOUT_EPA_ADDR:
             case MC_STDERR_EPA_ADDR:
+            {
               printf("%c", (uint8_t) dromajo_to_mc_packet.request.payload);
+              fflush(stdout);
+            }
             break;
             case MC_FINISH_EPA_ADDR:
             {

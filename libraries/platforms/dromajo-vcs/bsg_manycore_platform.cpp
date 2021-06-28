@@ -137,11 +137,13 @@ int hb_mc_platform_transmit(hb_mc_manycore_t *mc, hb_mc_packet_t *packet, hb_mc_
     return HB_MC_NOIMPL;
   }
 
-  int credits_used;
+  int credits_used = 0;
   do {
     err = bp_hb_get_credits_used(&credits_used);
   } while ((err != HB_MC_SUCCESS) || ((max_credits - credits_used) <= 0));
 
+  // Don't need to check for error code since this operation should always be a success since it is not going
+  // over the network
   err = bp_hb_write_to_mc_bridge(packet);
   if (err != HB_MC_SUCCESS) {
     bsg_pr_err("Write to the host request FIFO failed!");
@@ -170,13 +172,10 @@ int hb_mc_platform_receive(hb_mc_manycore_t *mc, hb_mc_packet_t *packet, hb_mc_f
   }
 
   int err;
-  int num_entries;
+  int num_entries = 0;
   do {
     err = bp_hb_get_fifo_entries(&num_entries, type);
   } while (num_entries == 0 || err != HB_MC_SUCCESS);
-
-  if (err != HB_MC_SUCCESS)
-    return err;
 
   err = bp_hb_read_from_mc_bridge(packet, type);
   if (err != HB_MC_SUCCESS) {
@@ -197,7 +196,8 @@ int hb_mc_platform_receive(hb_mc_manycore_t *mc, hb_mc_packet_t *packet, hb_mc_f
 int hb_mc_platform_get_config_at(hb_mc_manycore_t *mc, unsigned int idx, hb_mc_config_raw_t *config) {
   hb_mc_platform_t *platform = reinterpret_cast<hb_mc_platform_t *>(mc->platform);
   hb_mc_packet_t config_req_pkt, config_resp_pkt;
-  int num_entries, err;
+  int num_entries = 0;
+  int err;
 
   if (idx < HB_MC_CONFIG_MAX)
   {
@@ -246,8 +246,8 @@ int hb_mc_platform_get_config_at(hb_mc_manycore_t *mc, unsigned int idx, hb_mc_c
  */
 int hb_mc_platform_fence(hb_mc_manycore_t *mc, long timeout) {
   int credits_used, is_vacant, num_entries, err;
-  uint32_t max_credits;
   hb_mc_packet_t fence_req_pkt, fence_resp_pkt;
+  num_entries = 0;
 
   hb_mc_platform_t *platform = reinterpret_cast<hb_mc_platform_t *>(mc->platform); 
 
@@ -276,7 +276,7 @@ int hb_mc_platform_fence(hb_mc_manycore_t *mc, long timeout) {
 
     do {
       err = bp_hb_get_fifo_entries(&num_entries, HB_MC_FIFO_RX_RSP);
-    } while ((num_entries == 0) && (err == HB_MC_SUCCESS));
+    } while ((num_entries == 0) || (err != HB_MC_SUCCESS));
 
     err |= bp_hb_read_from_mc_bridge(&fence_resp_pkt, HB_MC_FIFO_RX_RSP);
     is_vacant = fence_resp_pkt.response.data;
@@ -367,7 +367,7 @@ int hb_mc_platform_log_disable(hb_mc_manycore_t *mc) {
  */        
 int hb_mc_platform_wait_reset_done(hb_mc_manycore_t *mc) {
   hb_mc_packet_t reset_req_pkt, reset_resp_pkt;
-  int err, credits_used;
+  int err;
   uint32_t data;
 
   reset_req_pkt.request.x_dst = (0 << 4) | 0;
