@@ -17,10 +17,12 @@ get-concurrency = $(firstword $(subst _, ,$(filter %_concurrency,$(subst __, ,$1
 # $1 = Test name
 get-run-type = $(firstword $(subst _, ,$(filter %_run,$(subst __, ,$1))))
 
-TABLE_SIZE_NUMS		= $(shell echo 4*1024*1024|bc)
+TABLE_SIZE_NUMS	        = $(shell echo 256*1024*1024|bc)
 UPDATES_PER_CORE_NUMS	= 512
 CORES_NUMS		= 1 2 4 8 16 32 64 128
-CONCURRENCY_NUMS	= 1 2 4
+CORES_NUMS             += 36 40 44
+CORES_NUMS             += 28 24 20
+CONCURRENCY_NUMS	= 1 2 4 8 16
 
 $(foreach tblsz,$(TABLE_SIZE_NUMS),\
 $(foreach upc,$(UPDATES_PER_CORE_NUMS),\

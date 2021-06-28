@@ -64,6 +64,7 @@ $(LIBRARIES_PATH)/features/dma/simulation/libdramsim3.so: CXXFLAGS += -I$(BASEJU
 $(LIBRARIES_PATH)/features/dma/simulation/libdramsim3.so: CXXFLAGS += -I$(BASEJUMP_STL_DIR)/imports/DRAMSim3/ext/fmt/include
 $(LIBRARIES_PATH)/features/dma/simulation/libdramsim3.so: CXXFLAGS += -DFMT_HEADER_ONLY=1
 $(LIBRARIES_PATH)/features/dma/simulation/libdramsim3.so: CXXFLAGS += -DBASEJUMP_STL_DIR="$(BASEJUMP_STL_DIR)"
+$(LIBRARIES_PATH)/features/dma/simulation/libdramsim3.so: CXXFLAGS += -DBLOOD_GRAPH=1
 $(LIBRARIES_PATH)/features/dma/simulation/libdramsim3.so: CXX=g++
 
 $(LIBRARIES_PATH)/features/dma/simulation/libdramsim3.so: $(BASEJUMP_STL_DIR)/imports/DRAMSim3/src/bankstate.cc

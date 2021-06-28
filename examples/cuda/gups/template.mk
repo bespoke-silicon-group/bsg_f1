@@ -134,6 +134,15 @@ SIM_ARGS ?=
 # Include platform-specific execution rules
 include $(EXAMPLES_PATH)/execution.mk
 
+
+###############
+# Blood graph #
+###############
+blood_graph: blood_graph_ch0.png blood_graph_ch1.png
+
+blood_graph_ch0.png blood_graph_ch1.png: %.png: %.log
+	python3 $(BSG_MANYCORE_DIR)/software/py/dramsim3_blood_graph.py $< $@
+
 ###############################################################################
 # Default rules, help, and clean
 ###############################################################################
