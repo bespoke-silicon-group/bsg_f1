@@ -1,19 +1,19 @@
 // Copyright (c) 2019, University of Washington All rights reserved.
-// 
+//
 // Redistribution and use in source and binary forms, with or without modification,
 // are permitted provided that the following conditions are met:
-// 
+//
 // Redistributions of source code must retain the above copyright notice, this list
 // of conditions and the following disclaimer.
-// 
+//
 // Redistributions in binary form must reproduce the above copyright notice, this
 // list of conditions and the following disclaimer in the documentation and/or
 // other materials provided with the distribution.
-// 
+//
 // Neither the name of the copyright holder nor the names of its contributors may
 // be used to endorse or promote products derived from this software without
 // specific prior written permission.
-// 
+//
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
 // ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 // WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -38,9 +38,12 @@
 #include <stdio.h>
 #include <bsg_manycore_regression.h>
 #include "HammerBlade.hpp"
-#include "CL.hpp"
-#include "Graph.hpp"
-#include "BFSGraph.hpp"
+#include "bfs/CL.hpp"
+#include "bfs/BFSGraph.hpp"
+#include "bfs/BFSSparseSet.hpp"
+#include "bfs/BFSDenseSet.hpp"
+#include "WGraph.hpp"
+#include "SparsePushBFS.hpp"
 
 using namespace hammerblade::host;
 using namespace BFS;
@@ -52,18 +55,60 @@ int Main(int argc, char *argv[])
 {
     CL cl;
     cl.parse(argc, argv);
-    
-    BFSGraph bfsg(Graph::Small());
-        
+
+    WGraph g = WGraph::Uniform(100, 1000);
+    auto stats = SparsePushBFS::RunBFS(g, 0, 1);
+
+    // load application
     HB = HammerBlade::Get();
     HB->load_application(cl.binary_path());
 
+    // format graph on device
+    BFSGraph bfsg(g);
+    BFSSparseSet frontier_in(stats.frontier_in(), bfsg.graph().num_nodes());
+    BFSDenseSet  frontier_out(std::set<int>(),    bfsg.graph().num_nodes());
+    BFSDenseSet  visited_io(stats.visited_in(),   bfsg.graph().num_nodes());
+
     bfsg.formatOnDevice();
+    frontier_in.formatOnDevice();
+    frontier_out.formatOnDevice();
+    visited_io.formatOnDevice();
+
+    // sync writes
     HB->sync_write();
-    HB->push_job(Dim(1,1), Dim(1,1), "bfs", bfsg.kgraph_dev());
+    HB->push_job(Dim(1,1), Dim(1,1), "bfs", bfsg.kgraph_dev(), frontier_in.dev(), frontier_out.dev(), visited_io.dev());
     HB->exec();
 
-    return HB_MC_SUCCESS;
+    // read output
+    frontier_out.updateFromDevice();
+    visited_io.updateFromDevice();
+    HB->sync_read();
+
+    std::set<int> frontier_out_kernel = frontier_out.setAfterUpdate();
+    std::set<int> frontier_out_host = stats.frontier_out();
+
+    // check sets are equal
+    // check that host contains kernel
+    bool equals = true;
+    for (int m : frontier_out_host) {
+        auto it = frontier_out_kernel.find(m);
+        if (it == frontier_out_kernel.end()) {
+            bsg_pr_err("Found %d in host result but not kernel\n", m);
+            equals = false;
+        }
+    }
+    // check that kernel contains host
+    for (int m : frontier_out_kernel) {
+        auto it = frontier_out_host.find(m);
+        if (it == frontier_out_host.end()) {
+            bsg_pr_err("Found %d in kernel result but not host\n", m);
+            equals = false;
+        }
+    }
+
+    stats.dump("bfs_stats.txt");
+
+    return equals ? HB_MC_SUCCESS : HB_MC_FAIL;
 }
 
 declare_program_main("BFS", Main);

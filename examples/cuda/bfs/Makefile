@@ -61,6 +61,7 @@ include $(graphtools-dir)/libgraphtools.mk
 # TEST_SOURCES is a list of source files that need to be compiled
 TEST_SOURCES  = main.cpp
 TEST_SOURCES += BFSGraph.cpp
+TEST_SOURCES += BFSSparseSet.cpp
 
 TEST_HEADERS =  $(find include/ -name *.h)
 TEST_HEADERS += $(find include/ -name *.hpp)

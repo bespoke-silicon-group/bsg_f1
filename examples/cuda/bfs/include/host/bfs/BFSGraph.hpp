@@ -1,23 +1,23 @@
 #pragma once
 #include "HammerBlade.hpp"
-#include "Graph.hpp"
-#include "graph.h"
+#include "WGraph.hpp"
+#include "bfs/graph.h"
 
 namespace BFS {
     class BFSGraph {
-        using Graph = graph_tools::Graph;
+        using WGraph = graph_tools::WGraph;
     public:
-        BFSGraph(Graph &g):
+        BFSGraph(WGraph &g):
             _graph(std::move(g)),
             _hb(hammerblade::host::HammerBlade::Get()) {
         }
-        BFSGraph(const Graph &&g):
+        BFSGraph(const WGraph &&g):
             _graph(std::move(g)),
             _hb(hammerblade::host::HammerBlade::Get()) {
         }
 
-        const Graph & graph() const { return _graph; }
-        Graph & graph() { return _graph; }
+        const WGraph & graph() const { return _graph; }
+        WGraph & graph() { return _graph; }
         const graph_t &kraph() const { return _kgraph; }
         kernel_graph_ptr_t        kgraph_dev() const { return _kgraph_dev; }
         kernel_vertex_data_ptr_t  edata_dev() const { return _edata_dev; }
@@ -26,7 +26,7 @@ namespace BFS {
         void formatOnDevice();
         
     private:
-        Graph   _graph;
+        WGraph  _graph;
         graph_t _kgraph;
         kernel_graph_ptr_t _kgraph_dev;
         kernel_vertex_data_ptr_t _vdata_dev;

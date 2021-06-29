@@ -3,7 +3,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-#include "types.h"
+#include "bfs/types.h"
 
 typedef int edge_data_t;
 #ifdef __KERNEL__

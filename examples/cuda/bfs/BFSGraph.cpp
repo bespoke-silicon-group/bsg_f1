@@ -1,5 +1,5 @@
-#include "BFSGraph.hpp"
-#include "graph.h"
+#include "bfs/BFSGraph.hpp"
+#include "bfs/graph.h"
 
 namespace BFS {
     void BFSGraph::formatOnDevice() {        
