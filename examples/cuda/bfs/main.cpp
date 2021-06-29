@@ -57,7 +57,7 @@ int Main(int argc, char *argv[])
     cl.parse(argc, argv);
 
     WGraph g = WGraph::Uniform(100, 1000);
-    auto stats = SparsePushBFS::RunBFS(g, 0, 1);
+    auto stats = SparsePushBFS::RunBFS(g, 0, 2);
 
     // load application
     HB = HammerBlade::Get();
@@ -76,7 +76,7 @@ int Main(int argc, char *argv[])
 
     // sync writes
     HB->sync_write();
-    HB->push_job(Dim(1,1), Dim(1,1), "bfs", bfsg.kgraph_dev(), frontier_in.dev(), frontier_out.dev(), visited_io.dev());
+    HB->push_job(Dim(128,1), Dim(1,1), "bfs", bfsg.kgraph_dev(), frontier_in.dev(), frontier_out.dev(), visited_io.dev());
     HB->exec();
 
     // read output

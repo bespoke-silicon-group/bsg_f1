@@ -46,6 +46,8 @@ namespace BFS {
                     after.insert(i);
             return after;
         }
+
+        const std::set<int> & set() const { return _set; }
         
         kernel_int_ptr_t dev() const { return _set_dev; }
 
