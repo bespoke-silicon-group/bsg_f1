@@ -7,7 +7,7 @@ extern "C" {
 
 typedef int edge_data_t;
 #ifdef __KERNEL__
-typedef edge_data_t* kernel_edge_data_ptr_t;
+typedef bsg_attr_remote edge_data_t* kernel_edge_data_ptr_t;
 #else
 typedef kernel_void_ptr_t kernel_edge_data_ptr_t;
 #endif
@@ -18,7 +18,7 @@ typedef struct vertex_data {
 } vertex_data_t;
 
 #ifdef __KERNEL__
-    typedef vertex_data_t*    kernel_vertex_data_ptr_t;
+    typedef bsg_attr_remote vertex_data_t*    kernel_vertex_data_ptr_t;
 #else
     typedef kernel_void_ptr_t kernel_vertex_data_ptr_t;
 #endif

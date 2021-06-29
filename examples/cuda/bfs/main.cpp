@@ -24,7 +24,6 @@
 // ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
 #include <bsg_manycore_tile.h>
 #include <bsg_manycore_errno.h>
 #include <bsg_manycore_tile.h>
@@ -36,6 +35,7 @@
 #include <unistd.h>
 #include <sys/ioctl.h>
 #include <stdio.h>
+#include <cmath>
 #include <bsg_manycore_regression.h>
 #include "HammerBlade.hpp"
 #include "bfs/CL.hpp"
@@ -56,8 +56,15 @@ int Main(int argc, char *argv[])
     CL cl;
     cl.parse(argc, argv);
 
-    WGraph g = WGraph::Uniform(100, 1000);
-    auto stats = SparsePushBFS::RunBFS(g, 0, 2);
+    WGraph g;
+
+    if (cl.graph_type() == "uniform") {
+        g = WGraph::Uniform(cl.graph_vertices(), cl.graph_edges());
+    } else if (cl.graph_type() == "graph500") {
+        g = WGraph::Generate(ceil(log2(cl.graph_vertices())),cl.graph_edges());
+    }
+
+    auto stats = SparsePushBFS::RunBFS(g, cl.bfs_root(), cl.bfs_iteration());
 
     // load application
     HB = HammerBlade::Get();
@@ -76,7 +83,9 @@ int Main(int argc, char *argv[])
 
     // sync writes
     HB->sync_write();
-    HB->push_job(Dim(128,1), Dim(1,1), "bfs", bfsg.kgraph_dev(), frontier_in.dev(), frontier_out.dev(), visited_io.dev());
+    bsg_pr_info("Launching bfs with %d groups of shape (x=%d,y=%d)\n", cl.groups(), cl.tgx(), cl.tgy());
+    HB->push_job(Dim(cl.groups(),1), Dim(cl.tgx(),cl.tgy()),
+                 "bfs", bfsg.kgraph_dev(), frontier_in.dev(), frontier_out.dev(), visited_io.dev());
     HB->exec();
 
     // read output

@@ -48,7 +48,7 @@ CUDALITE_SRC_PATH = $(SPMD_SRC_PATH)/bsg_cuda_lite_runtime
 # TEST_NAME is the basename of the executable
 TEST_NAME = main
 # KERNEL_NAME is the name of the CUDA-Lite Kernel
-KERNEL_NAME = vec_add
+KERNEL_NAME = bfs
 
 ###############################################################################
 # Host code compilation flags and flow
@@ -110,14 +110,16 @@ RISCV_INCLUDES += -I$(EXAMPLES_PATH)/cuda/bfs/include/kernel
 RISCV_INCLUDES += -I$(EXAMPLES_PATH)/cuda/bfs/include/common
 RISCV_CCPPFLAGS += -D__KERNEL__
 
-TILE_GROUP_DIM_X=2
-TILE_GROUP_DIM_Y=2
+TILE_GROUP_DIM_X ?= 1
+TILE_GROUP_DIM_Y ?= 1
 RISCV_DEFINES += -DTILE_GROUP_DIM_X=$(TILE_GROUP_DIM_X)
 RISCV_DEFINES += -DTILE_GROUP_DIM_Y=$(TILE_GROUP_DIM_Y)
 RISCV_DEFINES += -Dbsg_tiles_X=$(TILE_GROUP_DIM_X)
 RISCV_DEFINES += -Dbsg_tiles_Y=$(TILE_GROUP_DIM_Y)
 
 include $(EXAMPLES_PATH)/cuda/riscv.mk
+RISCV_CC  := $(RISCV_CLANG)
+RISCV_CXX := $(RISCV_CLANGXX)
 
 ###############################################################################
 # Execution flow
@@ -127,7 +129,20 @@ include $(EXAMPLES_PATH)/cuda/riscv.mk
 #
 # SIM_ARGS: Use this to pass arguments to the simulator
 ###############################################################################
+
+# graph configuration
+GRAPH_TYPE     ?= uniform
+GRAPH_VERTICES ?= 1000
+GRAPH_EDGES    ?= 10000
+BFS_ROOT       ?= 0
+BFS_ITERATION  ?= 2
+
+# threading configuration
+TILE_GROUPS    ?= 128
+
 C_ARGS ?= $(BSG_MANYCORE_KERNELS) $(KERNEL_NAME)
+C_ARGS += $(GRAPH_TYPE) $(GRAPH_VERTICES) $(GRAPH_EDGES) $(BFS_ROOT) $(BFS_ITERATION)
+C_ARGS += $(TILE_GROUPS) $(TILE_GROUP_DIM_X) $(TILE_GROUP_DIM_Y)
 
 SIM_ARGS ?=
 
@@ -157,11 +172,5 @@ help:
 .PHONY: clean
 
 clean:
-	BSG_MANYCORE_DIR=$(BSG_MANYCORE_DIR) \
-	BASEJUMP_STL_DIR=$(BASEJUMP_STL_DIR) \
-	BSG_IP_CORES_DIR=$(BASEJUMP_STL_DIR) \
-	IGNORE_CADENV=1 \
-	BSG_MACHINE_PATH=$(BSG_MACHINE_PATH) \
-	$(MAKE) -j1 -C $(CUDALITE_SRC_PATH)/$(KERNEL_NAME) clean
-
+	rm -f bfs_stats.txt
 

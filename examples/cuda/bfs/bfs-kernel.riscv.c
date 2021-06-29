@@ -15,9 +15,9 @@ int bfs(graph_t *G_ptr,
          src_i += __bsg_grid_dim_x*__bsg_grid_dim_y) {
         // update all neibs
         int src = frontier_in->members[src_i];
-        vertex_data_t *src_data = &G.vertex_data[src];
+        kernel_vertex_data_ptr_t src_data = &G.vertex_data[src];
         int degree = src_data->degree;
-        int *neib = src_data->neib;
+        kernel_edge_data_ptr_t neib = src_data->neib;
         for (int dst_i = 0; dst_i < degree; dst_i++) {
             int dst = neib[dst_i];
             if (visited[dst] == 0) {
