@@ -25,152 +25,90 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-# This Makefile compiles, links, and executes examples Run `make help`
-# to see the available targets for the selected platform.
-
-################################################################################
-# environment.mk verifies the build environment and sets the following
-# makefile variables:
-#
-# LIBRAIRES_PATH: The path to the libraries directory
-# HARDWARE_PATH: The path to the hardware directory
-# EXAMPLES_PATH: The path to the examples directory
-# BASEJUMP_STL_DIR: Path to a clone of BaseJump STL
-# BSG_MANYCORE_DIR: Path to a clone of BSG Manycore
-###############################################################################
 
 REPLICANT_PATH:=$(shell git rev-parse --show-toplevel)
 
 include $(REPLICANT_PATH)/environment.mk
-SPMD_SRC_PATH = $(BSG_MANYCORE_DIR)/software/spmd
-CUDALITE_SRC_PATH = $(SPMD_SRC_PATH)/bsg_cuda_lite_runtime
 
-# TEST_NAME is the basename of the executable
-TEST_NAME = main
-# KERNEL_NAME is the name of the CUDA-Lite Kernel
-KERNEL_NAME = bfs
+# $1 = graph-type
+# $2 = graph-vertices
+# $3 = graph-edges
+# $4 = bfs-root
+# $5 = bfs-iteration
+# $6 = tile-groups
+# $7 = tgx
+# $8 = tgy
 
-###############################################################################
-# Host code compilation flags and flow
-###############################################################################
-hammerblade-helpers-dir = $(EXAMPLES_PATH)/cuda/bfs/hammerblade-helpers
-include $(hammerblade-helpers-dir)/libhammerblade-helpers-host.mk
-graphtools-dir = $(EXAMPLES_PATH)/cuda/bfs/graph-tools
-include $(graphtools-dir)/libgraphtools.mk
+test-name = $(1)_graph-type__$(2)_vertices__$(3)_edges__$(4)_root__$(5)_iter__$(6)_tile-groups__$(7)_tgx__$(8)_tgy
 
-# TEST_SOURCES is a list of source files that need to be compiled
-TEST_SOURCES  = main.cpp
-TEST_SOURCES += BFSGraph.cpp
-TEST_SOURCES += BFSSparseSet.cpp
+# $1 = test name
+get-graph-type	= $(firstword $(subst _, ,$(filter %_graph-type,$(subst __, ,$1))))
+get-vertices	= $(firstword $(subst _, ,$(filter %_vertices,$(subst __, ,$1))))
+get-edges	= $(firstword $(subst _, ,$(filter %_edges,$(subst __, ,$1))))
+get-root	= $(firstword $(subst _, ,$(filter %_root,$(subst __, ,$1))))
+get-iter	= $(firstword $(subst _, ,$(filter %_iter,$(subst __, ,$1))))
+get-tile-groups = $(firstword $(subst _, ,$(filter %_tile-groups,$(subst __, ,$1))))
+get-tgx		= $(firstword $(subst _, ,$(filter %_tgx,$(subst __, ,$1))))
+get-tgy		= $(firstword $(subst _, ,$(filter %_tgy,$(subst __, ,$1))))
 
-TEST_HEADERS =  $(find include/ -name *.h)
-TEST_HEADERS += $(find include/ -name *.hpp)
+define get-test-parameters
+$(eval GRAPH_TYPE=$(call get-graph-type,$1))
+$(eval VERTICES=$(call get-vertices,$1))
+$(eval EDGES=$(call get-edges,$1))
+$(eval ROOT=$(call get-root,$1))
+$(eval ITER=$(call get-iter,$1))
+$(eval TILE_GROUPS=$(call get-tile-groups,$1))
+$(eval TGX=$(call get-tgx,$1))
+$(eval TGY=$(call get-tgy,$1))
+endef
 
-DEFINES += -D_XOPEN_SOURCE=500 -D_BSD_SOURCE -D_DEFAULT_SOURCE
-CDEFINES += 
-CXXDEFINES += 
+TESTS += $(call test-name,uniform,128,1024,0,1,32,1,1)
 
-FLAGS     = -O3 -g -Wall -Wno-unused-function -Wno-unused-variable
-FLAGS    += -I$(EXAMPLES_PATH)/cuda/bfs/include/host
-FLAGS    += -I$(EXAMPLES_PATH)/cuda/bfs/include/common
-CFLAGS   += -std=c99 $(FLAGS)
-CXXFLAGS += -std=c++11 $(FLAGS)
-CXXFLAGS += $(libhammerblade-helpers-host-interface-cxxflags)
-CXXFLAGS += $(libgraphtools-interface-cxxflags)
+# simulation directory generation
+TESTS_MAKEFILE  = $(addsuffix /Makefile,$(TESTS))
+TESTS_PARAMETERS_MK = $(addsuffix /parameters.mk,$(TESTS))
 
-# compilation.mk defines rules for compilation of C/C++
-include $(EXAMPLES_PATH)/compilation.mk
+# generate a parameter makefile
+$(TESTS_PARAMETERS_MK): %/parameters.mk:
+	$(call get-test-parameters,$*)
+	@echo "Creating $@"
+	@mkdir -p $*
+	@echo RISCV_PATH = $(EXAMPLES_PATH)/cuda/bfs/$*/main.riscv > $@
+	@echo GRAPH_TYPE = $(GRAPH_TYPE) >> $@
+	@echo GRAPH_VERTICES = $(VERTICES) >> $@
+	@echo GRAPH_EDGES = $(EDGES) >> $@
+	@echo BFS_ROOT = $(ROOT) >> $@
+	@echo BFS_ITERATION = $(ITER) >> $@
+	@echo TILE_GROUPS = $(TILE_GROUPS) >> $@
+	@echo TILE_GROUP_DIM_X = $(TGX) >> $@
+	@echo TILE_GROUP_DIM_Y = $(TGY) >> $@
 
-###############################################################################
-# Host code link flags and flow
-###############################################################################
+# copy the template to the the target directory
+$(TESTS_MAKEFILE): %/Makefile: template.mk
+	@echo "Creating $@"
+	@mkdir -p $*
+	@cp $< $@
 
-LDFLAGS  += $(libhammerblade-helpers-host-interface-ldflags)
-LDFLAGS  += $(libgraphtools-interface-ldflags)
+$(TESTS): %: %/Makefile %/parameters.mk
 
-# link.mk defines rules for linking of the final execution binary.
-include $(EXAMPLES_PATH)/link.mk
+TESTS_EXEC	= $(addsuffix .exec,$(TESTS))
+TESTS_PROFILE	= $(addsuffix .profile,$(TESTS))
+TESTS_DEBUG	= $(addsuffix .debug,$(TESTS))
+TESTS_SAIFGEN	= $(addsuffix .saifgen,$(TESTS))
 
-$(TEST_OBJECTS): $(libhammerblade-helpers-host-interface-headers)
-$(TEST_OBJECTS): $(libhammerblade-helpers-host-interface-libraries)
-$(TEST_OBJECTS): $(libgraphtools-interface-headers)
-$(TEST_OBJECTS): $(libgraphtools-interface-libraries)
-$(TEST_OBJECTS): $(TEST_HEADERS)
+$(TESTS_EXEC): %.exec: %
+$(TESTS_PROFILE): %.profile: %
+$(TESTS_DEBUG): %.debug: %
+$(TESTS_SAIFGEN): %.saifgen: %
+$(TESTS_EXEC) $(TESTS_PROFILE) $(TESTS_DEBUG) $(TESTS_SAIFGEN):
+	$(eval RUN_DIR=$(firstword $(subst ., ,$@)))
+	$(eval RUN_TYPE=$(lastword $(subst ., ,$@)))
+	$(MAKE) -C $(RUN_DIR) main.$(RUN_TYPE).log
 
-###############################################################################
-# Device code compilation flow
-###############################################################################
-
-# BSG_MANYCORE_KERNELS is a list of manycore executables that should
-# be built before executing.
-BSG_MANYCORE_KERNELS = $(EXAMPLES_PATH)/cuda/bfs/main.riscv
-#RISCV_TARGET_OBJECTS  = main.riscv.rvo
-RISCV_TARGET_OBJECTS += bfs-kernel.riscv.rvo
-RISCV_INCLUDES += -I$(EXAMPLES_PATH)/cuda/bfs/include/kernel
-RISCV_INCLUDES += -I$(EXAMPLES_PATH)/cuda/bfs/include/common
-RISCV_CCPPFLAGS += -D__KERNEL__
-
-TILE_GROUP_DIM_X ?= 1
-TILE_GROUP_DIM_Y ?= 1
-RISCV_DEFINES += -DTILE_GROUP_DIM_X=$(TILE_GROUP_DIM_X)
-RISCV_DEFINES += -DTILE_GROUP_DIM_Y=$(TILE_GROUP_DIM_Y)
-RISCV_DEFINES += -Dbsg_tiles_X=$(TILE_GROUP_DIM_X)
-RISCV_DEFINES += -Dbsg_tiles_Y=$(TILE_GROUP_DIM_Y)
-
-include $(EXAMPLES_PATH)/cuda/riscv.mk
-RISCV_CC  := $(RISCV_CLANG)
-RISCV_CXX := $(RISCV_CLANGXX)
-
-###############################################################################
-# Execution flow
-#
-# C_ARGS: Use this to pass arguments that you want to appear in argv
-#         For SPMD tests C arguments are: <Path to RISC-V Binary> <Test Name>
-#
-# SIM_ARGS: Use this to pass arguments to the simulator
-###############################################################################
-
-# graph configuration
-GRAPH_TYPE     ?= uniform
-GRAPH_VERTICES ?= 1000
-GRAPH_EDGES    ?= 10000
-BFS_ROOT       ?= 0
-BFS_ITERATION  ?= 2
-
-# threading configuration
-TILE_GROUPS    ?= 128
-
-C_ARGS ?= $(BSG_MANYCORE_KERNELS) $(KERNEL_NAME)
-C_ARGS += $(GRAPH_TYPE) $(GRAPH_VERTICES) $(GRAPH_EDGES) $(BFS_ROOT) $(BFS_ITERATION)
-C_ARGS += $(TILE_GROUPS) $(TILE_GROUP_DIM_X) $(TILE_GROUP_DIM_Y)
-
-SIM_ARGS ?=
-
-# Include platform-specific execution rules
-include $(EXAMPLES_PATH)/execution.mk
-
-###############################################################################
-# Regression Flow
-###############################################################################
-
-regression: main.exec.log
-	@grep "BSG REGRESSION TEST .*PASSED.*" $< > /dev/null
-
-###############################################################################
-# Default rules, help, and clean
-###############################################################################
-.DEFAULT_GOAL := help
-help:
-	@echo "Usage:"
-	@echo "make {clean | $(TEST_NAME).{profile,debug} | $(TEST_NAME).{profile,debug}.log}"
-	@echo "      $(TEST_NAME).profile: Build executable with profilers enabled"
-	@echo "      $(TEST_NAME).debug: Build waveform executable (if VCS)"
-	@echo "      $(TEST_NAME).{profile,debug}.log: Run specific executable"
-	@echo "      clean: Remove all subdirectory-specific outputs"
-
-
-.PHONY: clean
+exec: $(TESTS_EXEC)
+profile: $(TESTS_PROFILE)
+debug: $(TESTS_DEBUG)
+saifgen: $(TESTS_SAIFGEN)
 
 clean:
-	rm -f bfs_stats.txt
-
+	rm -rf $(TESTS)
