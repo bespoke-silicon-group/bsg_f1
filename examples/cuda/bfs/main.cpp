@@ -56,14 +56,9 @@ int Main(int argc, char *argv[])
     CL cl;
     cl.parse(argc, argv);
 
-    WGraph g;
-    int iter = cl.bfs_iteration();
+    WGraph g = WGraph::FromGraph500Data(Graph500Data::FromFile(cl.input_graph_path()));
 
-    if (cl.graph_type() == "uniform") {
-        g = WGraph::Uniform(cl.graph_vertices(), cl.graph_edges());
-    } else if (cl.graph_type() == "graph500") {
-        g = WGraph::Generate(ceil(log2(cl.graph_vertices())),cl.graph_edges());
-    }
+    int iter = cl.bfs_iteration();
 
     std::vector<SparsePushBFS> stats = SparsePushBFS::RunBFS(g, cl.bfs_root(), cl.bfs_iteration());
 
@@ -84,7 +79,14 @@ int Main(int argc, char *argv[])
 
     // sync writes
     HB->sync_write();
-    bsg_pr_info("Launching bfs with %d groups of shape (x=%d,y=%d)\n", cl.groups(), cl.tgx(), cl.tgy());
+    bsg_pr_info("BFS iteration %d on %s graph with %d nodes and %d edges starting from root %d\n",
+                cl.bfs_iteration(),
+                cl.graph_type().c_str(),
+                bfsg.num_nodes(),
+                bfsg.num_edges(),
+                cl.bfs_root());
+
+    bsg_pr_info("Launching BFS with %d groups of shape (x=%d,y=%d)\n", cl.groups(), cl.tgx(), cl.tgy());
     HB->push_job(Dim(cl.groups(),1), Dim(cl.tgx(),cl.tgy()),
                  "bfs", bfsg.kgraph_dev(), frontier_in.dev(), frontier_out.dev(), visited_io.dev());
     HB->exec();
@@ -95,7 +97,7 @@ int Main(int argc, char *argv[])
     HB->sync_read();
 
     std::set<int> frontier_out_kernel = frontier_out.setAfterUpdate();
-    std::set<int> frontier_out_host = stats[iter].frontier_out();
+    const std::set<int>& frontier_out_host = stats[iter].frontier_out();
 
     // check sets are equal
     // check that host contains kernel

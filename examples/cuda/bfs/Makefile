@@ -50,7 +50,7 @@ $(eval VERTICES=$(call vertices-from-graph-name,$1))
 $(eval EDGES=$(call edges-from-graph-name,$1))
 endef
 
-GRAPHS += $(call graph-name,graph500,$(shell echo 64*1024|bc),$(shell echo 1*1024*1024|bc))
+GRAPHS += $(call graph-name,uniform,128,1024)
 GRAPHS := $(addprefix inputs/,$(GRAPHS))
 GRAPHS_ANALYSIS := $(addsuffix .analysis.txt,$(GRAPHS))
 
@@ -98,7 +98,12 @@ $(eval TGX=$(call get-tgx,$1))
 $(eval TGY=$(call get-tgy,$1))
 endef
 
-TESTS += $(call test-name,uniform,128,1024,0,1,32,1,1)
+NUM_VERTICES = $(echo  16*1024*1024|bc)
+NUM_EDGES    = $(echo 256*1024*1024|bc)
+ROOT_NODE    = 
+ITERS =  0 1 2 3 4 5
+
+TESTS += $(call test-name,uniform,128,1024,0,2,1,1,1)
 
 # simulation directory generation
 TESTS_MAKEFILE  = $(addsuffix /Makefile,$(TESTS))
@@ -118,6 +123,7 @@ $(TESTS_PARAMETERS_MK): %/parameters.mk:
 	@echo TILE_GROUPS = $(TILE_GROUPS) >> $@
 	@echo TILE_GROUP_DIM_X = $(TGX) >> $@
 	@echo TILE_GROUP_DIM_Y = $(TGY) >> $@
+	@echo INPUT_GRAPH_PATH = $(EXAMPLES_PATH)/cuda/bfs/inputs/$(call graph-name,$(GRAPH_TYPE),$(VERTICES),$(EDGES)) >> $@
 
 # copy the template to the the target directory
 $(TESTS_MAKEFILE): %/Makefile: template.mk
@@ -136,6 +142,8 @@ $(TESTS_EXEC): %.exec: %
 $(TESTS_PROFILE): %.profile: %
 $(TESTS_DEBUG): %.debug: %
 $(TESTS_SAIFGEN): %.saifgen: %
+$(TESTS_EXEC) $(TESTS_PROFILE) $(TESTS_DEBUG) $(TESTS_SAIFGEN): $(GRAPHS)
+$(TESTS_EXEC) $(TESTS_PROFILE) $(TESTS_DEBUG) $(TESTS_SAIFGEN): $(GRAPHS_ANALYSIS)
 $(TESTS_EXEC) $(TESTS_PROFILE) $(TESTS_DEBUG) $(TESTS_SAIFGEN):
 	$(eval RUN_DIR=$(firstword $(subst ., ,$@)))
 	$(eval RUN_TYPE=$(lastword $(subst ., ,$@)))

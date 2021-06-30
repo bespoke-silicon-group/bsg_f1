@@ -22,6 +22,8 @@ namespace BFS {
         kernel_graph_ptr_t        kgraph_dev() const { return _kgraph_dev; }
         kernel_vertex_data_ptr_t  edata_dev() const { return _edata_dev; }
         kernel_edge_data_ptr_t    vdata_dev() const { return _vdata_dev; }
+        int num_nodes() const { return static_cast<int>(_graph.num_nodes()); }
+        int num_edges() const { return static_cast<int>(_graph.num_edges()); }
         // format the graph on the device 
         void formatOnDevice();
         
