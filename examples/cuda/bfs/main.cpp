@@ -57,6 +57,7 @@ int Main(int argc, char *argv[])
     cl.parse(argc, argv);
 
     WGraph g;
+    int iter = cl.bfs_iteration();
 
     if (cl.graph_type() == "uniform") {
         g = WGraph::Uniform(cl.graph_vertices(), cl.graph_edges());
@@ -64,7 +65,7 @@ int Main(int argc, char *argv[])
         g = WGraph::Generate(ceil(log2(cl.graph_vertices())),cl.graph_edges());
     }
 
-    auto stats = SparsePushBFS::RunBFS(g, cl.bfs_root(), cl.bfs_iteration());
+    std::vector<SparsePushBFS> stats = SparsePushBFS::RunBFS(g, cl.bfs_root(), cl.bfs_iteration());
 
     // load application
     HB = HammerBlade::Get();
@@ -72,9 +73,9 @@ int Main(int argc, char *argv[])
 
     // format graph on device
     BFSGraph bfsg(g);
-    BFSSparseSet frontier_in(stats.frontier_in(), bfsg.graph().num_nodes());
+    BFSSparseSet frontier_in(stats[iter].frontier_in(), bfsg.graph().num_nodes());
     BFSDenseSet  frontier_out(std::set<int>(),    bfsg.graph().num_nodes());
-    BFSDenseSet  visited_io(stats.visited_in(),   bfsg.graph().num_nodes());
+    BFSDenseSet  visited_io(stats[iter].visited_in(),   bfsg.graph().num_nodes());
 
     bfsg.formatOnDevice();
     frontier_in.formatOnDevice();
@@ -94,7 +95,7 @@ int Main(int argc, char *argv[])
     HB->sync_read();
 
     std::set<int> frontier_out_kernel = frontier_out.setAfterUpdate();
-    std::set<int> frontier_out_host = stats.frontier_out();
+    std::set<int> frontier_out_host = stats[iter].frontier_out();
 
     // check sets are equal
     // check that host contains kernel
@@ -115,7 +116,7 @@ int Main(int argc, char *argv[])
         }
     }
 
-    stats.dump("bfs_stats.txt");
+    stats[iter].dump("bfs_stats.txt");
 
     return equals ? HB_MC_SUCCESS : HB_MC_FAIL;
 }
