@@ -30,6 +30,42 @@ REPLICANT_PATH:=$(shell git rev-parse --show-toplevel)
 
 include $(REPLICANT_PATH)/environment.mk
 
+
+# $1 = graph_type
+# $2 = vertices
+# $3 = edges
+
+graph-name = $(1)_graph-type__$(2)_vertices__$(3)_edges
+
+# $1 = graph-name
+type-from-graph-name	 = $(firstword $(subst _, ,$(filter %_graph-type,$(subst __, ,$1))))
+vertices-from-graph-name = $(firstword $(subst _, ,$(filter %_vertices,$(subst __, ,$1))))
+edges-from-graph-name	 = $(firstword $(subst _, ,$(filter %_edges,$(subst __, ,$1))))
+
+# $1 = graph-name
+
+define set-graph-parameters
+$(eval GRAPH_TYPE=$(call type-from-graph-name,$1))
+$(eval VERTICES=$(call vertices-from-graph-name,$1))
+$(eval EDGES=$(call edges-from-graph-name,$1))
+endef
+
+GRAPHS += $(call graph-name,graph500,$(shell echo 64*1024|bc),$(shell echo 1*1024*1024|bc))
+GRAPHS := $(addprefix inputs/,$(GRAPHS))
+GRAPHS_ANALYSIS := $(addsuffix .analysis.txt,$(GRAPHS))
+
+$(GRAPHS): inputs/%: input-gen
+	$(call set-graph-parameters,$*)
+	@mkdir -p $(dir $@)
+	./$< $(GRAPH_TYPE) $(VERTICES) $(EDGES) $@
+
+$(GRAPHS_ANALYSIS): inputs/%.analysis.txt: inputs/% input-analyze
+	./input-analyze $< avg 6 $@
+
+.PHONY: inputs
+inputs: $(GRAPHS)
+inputs-analysis: $(GRAPHS_ANALYSIS)
+
 # $1 = graph-type
 # $2 = graph-vertices
 # $3 = graph-edges
@@ -125,7 +161,9 @@ input-gen input-analyze:
 
 support-tools: input-gen input-analyze
 
+
 clean:
 	rm -rf $(TESTS)
 	rm -f input-analyze
 	rm -f input-gen
+	rm -rf inputs

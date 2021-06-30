@@ -32,7 +32,7 @@ int main(int argc, char *argv[])
         root = atoi(ROOT.c_str());
     }
 
-    std::vector<SparsePushBFS> stats = SparsePushBFS::RunBFS(wg, root, ITERS);
+    std::vector<SparsePushBFS> stats = SparsePushBFS::RunBFS(wg, root, ITERS, false);
 
     // write the output
     FILE *output = fopen(OUTPUT_NAME.c_str(), "w");
