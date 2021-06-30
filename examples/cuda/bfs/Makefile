@@ -110,5 +110,22 @@ profile: $(TESTS_PROFILE)
 debug: $(TESTS_DEBUG)
 saifgen: $(TESTS_SAIFGEN)
 
+# some support executables
+graphtools-dir = $(EXAMPLES_PATH)/cuda/bfs/graph-tools
+include $(graphtools-dir)/libgraphtools.mk
+
+input-gen input-analyze: $(libgraphtools-interface-headers)
+input-gen input-analyze: $(libgraphtools-interface-libraries)
+input-gen input-analyze: CXXFLAGS+=$(libgraphtools-interface-cxxflags)
+input-gen input-analyze: CXXFLAGS+=$(libgraphtools-interface-ldflags)
+input-gen:     input-gen.cpp
+input-analyze: input-analyze.cpp
+input-gen input-analyze:
+	$(CXX) $(filter %.cpp,$^) $(libgraphtools-interface-cxxflags) $(libgraphtools-interface-ldflags) -o $@
+
+support-tools: input-gen input-analyze
+
 clean:
 	rm -rf $(TESTS)
+	rm -f input-analyze
+	rm -f input-gen
