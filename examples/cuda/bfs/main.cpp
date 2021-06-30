@@ -60,7 +60,7 @@ int Main(int argc, char *argv[])
 
     int iter = cl.bfs_iteration();
 
-    std::vector<SparsePushBFS> stats = SparsePushBFS::RunBFS(g, cl.bfs_root(), cl.bfs_iteration());
+    std::vector<SparsePushBFS> stats = SparsePushBFS::RunBFS(g, cl.bfs_root(), cl.bfs_iteration(), false);
 
     // load application
     HB = HammerBlade::Get();
