@@ -31,6 +31,13 @@ REPLICANT_PATH:=$(shell git rev-parse --show-toplevel)
 include $(REPLICANT_PATH)/environment.mk
 
 
+TEST_GRAPH_TYPE = graph500
+TEST_VERTICES = $(shell echo   1*1024*1024|bc)
+TEST_EDGES    = $(shell echo  16*1024*1024|bc)
+TEST_ROOT_NODE    = 182
+TEST_ITERS        = 1 2 6
+
+
 # $1 = graph_type
 # $2 = vertices
 # $3 = edges
@@ -43,14 +50,13 @@ vertices-from-graph-name = $(firstword $(subst _, ,$(filter %_vertices,$(subst _
 edges-from-graph-name	 = $(firstword $(subst _, ,$(filter %_edges,$(subst __, ,$1))))
 
 # $1 = graph-name
-
 define set-graph-parameters
 $(eval GRAPH_TYPE=$(call type-from-graph-name,$1))
 $(eval VERTICES=$(call vertices-from-graph-name,$1))
 $(eval EDGES=$(call edges-from-graph-name,$1))
 endef
 
-GRAPHS += $(call graph-name,uniform,128,1024)
+GRAPHS += $(call graph-name,$(TEST_GRAPH_TYPE),$(TEST_VERTICES),$(TEST_EDGES))
 GRAPHS := $(addprefix inputs/,$(GRAPHS))
 GRAPHS_ANALYSIS := $(addsuffix .analysis.txt,$(GRAPHS))
 
@@ -60,7 +66,7 @@ $(GRAPHS): inputs/%: input-gen
 	./$< $(GRAPH_TYPE) $(VERTICES) $(EDGES) $@
 
 $(GRAPHS_ANALYSIS): inputs/%.analysis.txt: inputs/% input-analyze
-	./input-analyze $< avg 6 $@
+	./input-analyze $< avg 10 $@
 
 .PHONY: inputs
 inputs: $(GRAPHS)
@@ -98,12 +104,10 @@ $(eval TGX=$(call get-tgx,$1))
 $(eval TGY=$(call get-tgy,$1))
 endef
 
-NUM_VERTICES = $(echo  16*1024*1024|bc)
-NUM_EDGES    = $(echo 256*1024*1024|bc)
-ROOT_NODE    = 
-ITERS =  0 1 2 3 4 5
-
-TESTS += $(call test-name,uniform,128,1024,0,2,1,1,1)
+TEST_THREADS = 32 64 128
+$(foreach threads,$(TEST_THREADS),\
+$(foreach iter,$(TEST_ITERS),\
+$(eval TESTS += $(call test-name,$(TEST_GRAPH_TYPE),$(TEST_VERTICES),$(TEST_EDGES),$(TEST_ROOT_NODE),$(iter),$(threads),1,1))))
 
 # simulation directory generation
 TESTS_MAKEFILE  = $(addsuffix /Makefile,$(TESTS))
@@ -170,8 +174,10 @@ input-gen input-analyze:
 support-tools: input-gen input-analyze
 
 
-clean:
+purge:
 	rm -rf $(TESTS)
 	rm -f input-analyze
 	rm -f input-gen
 	rm -rf inputs
+
+
