@@ -30,13 +30,7 @@ REPLICANT_PATH:=$(shell git rev-parse --show-toplevel)
 
 include $(REPLICANT_PATH)/environment.mk
 
-
-TEST_GRAPH_TYPE = graph500
-TEST_VERTICES = $(shell echo   1*1024*1024|bc)
-TEST_EDGES    = $(shell echo  16*1024*1024|bc)
-TEST_ROOT_NODE    = 182
-TEST_ITERS        = 1 2 6
-
+include $(EXAMPLES_PATH)/cuda/bfs/config.mk
 
 # $1 = graph_type
 # $2 = vertices
