@@ -1,0 +1,135 @@
+# Copyright (c) 2019, University of Washington All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without modification,
+# are permitted provided that the following conditions are met:
+#
+# Redistributions of source code must retain the above copyright notice, this list
+# of conditions and the following disclaimer.
+#
+# Redistributions in binary form must reproduce the above copyright notice, this
+# list of conditions and the following disclaimer in the documentation and/or
+# other materials provided with the distribution.
+#
+# Neither the name of the copyright holder nor the names of its contributors may
+# be used to endorse or promote products derived from this software without
+# specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+# DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR
+# ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+# (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+# ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+############################################################################################
+# TIMING_MESH_8_4: this is a 8x4 array with v-caches on top and bottom (a “8x4 pod”).      #
+# Each v-cache is mapped to a separate HBM bank.                                           #
+# There is one HBM channel.                                                                #
+# There is a vanilla, 2D mesh network (no ruche links)                                     #
+# This is probably not a sensible configuration, as the tile to channel ratio is very low. #
+# But for memory bound benchmarks, it may be reasonable to use for iteration.              #
+############################################################################################
+
+# Change these parameters to define your machine. All other parameters should remain constant.
+
+# Chip Pod Dimensions
+BSG_MACHINE_PODS_X                    = 1
+BSG_MACHINE_PODS_Y                    = 1
+
+# Heterogeneous tile composition. Must be a 1-d array equal to the
+# number of tiles, or shorthand (default:0)
+# 0 is for Vanilla Core (RV32).
+# Anything else should be described here :)
+BSG_MACHINE_HETERO_TYPE_VEC           = default:0
+
+# Network Parameters
+BSG_MACHINE_NETWORK_CFG               = e_network_half_ruche_x
+BSG_MACHINE_RUCHE_FACTOR_X            = 3
+
+# Memory System Parameters
+BSG_MACHINE_DRAM_INCLUDED             = 1
+BSG_MACHINE_MEM_DRAMSIM3_PKG          = bsg_dramsim3_hbm2_8gb_x128_pkg
+BSG_MACHINE_MEM_CFG                   = e_vcache_hbm2
+
+# Victim Cache Parameters
+BSG_MACHINE_VCACHE_PER_DRAM_CHANNEL   = 16
+BSG_MACHINE_VCACHE_SET                = 64
+BSG_MACHINE_VCACHE_WAY                = 4
+BSG_MACHINE_VCACHE_LINE_WORDS         = 8
+BSG_MACHINE_VCACHE_STRIPE_WORDS       = $(BSG_MACHINE_VCACHE_LINE_WORDS)
+# Only applies to Non-blocking Cache
+BSG_MACHINE_VCACHE_MISS_FIFO_ELS      = 32
+
+# Number of vcache tile rows in a cache pod on either side of a tile pod
+BSG_MACHINE_POD_VCACHE_NUM_ROWS       = 1
+
+# NOC Coordinate Widths (Rarely Changed)
+BSG_MACHINE_NOC_COORD_X_WIDTH         = 7
+BSG_MACHINE_NOC_COORD_Y_WIDTH         = 7
+
+# Pod Tile Dimensions (Rarely Changed)
+BSG_MACHINE_POD_TILES_X               = 16
+BSG_MACHINE_POD_TILES_Y               = 8
+
+# Pod Tile subarray dimensions (Rarely changed, for physical design only)
+BSG_MACHINE_POD_TILES_SUBARRAY_X      = 1
+BSG_MACHINE_POD_TILES_SUBARRAY_Y      = 1
+
+# Host Coordinate (Rarely Changed)
+BSG_MACHINE_HOST_COORD_X              = 16
+BSG_MACHINE_HOST_COORD_Y              = 0
+
+BSG_MACHINE_HOST_X_CORD              = $(BSG_MACHINE_HOST_COORD_X)
+BSG_MACHINE_HOST_Y_CORD              = $(BSG_MACHINE_HOST_COORD_Y)
+
+# Manycore Origin (Rarely Changed)
+BSG_MACHINE_ORIGIN_COORD_X            = 16
+BSG_MACHINE_ORIGIN_COORD_Y            = 8
+
+# Cache-DRAM Interface Width (Rarely Changed)
+BSG_MACHINE_VCACHE_DMA_DATA_WIDTH     = 32
+
+# IO flow control parameters. (Rarely Changed)
+BSG_MACHINE_IO_EP_CREDITS             = 32
+BSG_MACHINE_IO_HOST_CREDITS           = $(BSG_MACHINE_IO_EP_CREDITS)
+BSG_MACHINE_IO_REMOTE_LOAD_CAP        = $(BSG_MACHINE_IO_EP_CREDITS)
+
+##################### Constants and Computations #####################
+
+# Aliases required for memsys.mk, and others.
+# Specific to the HBM2E chip we're modeling (8GB, 4-stack/8-channel)
+__BSG_MACHINE_DRAMSIM3_CHIP_SIZE_IN_WORDS := $(shell echo 2^31 | bc) # 4GB
+__BSG_MACHINE_DRAMSIM3_CHIP_CH_SIZE_IN_WORDS := $(shell echo $(__BSG_MACHINE_DRAMSIM3_CHIP_SIZE_IN_WORDS)/8 | bc)
+
+BSG_MACHINE_POD_TILES                := $(shell echo $(BSG_MACHINE_POD_TILES_X)*$(BSG_MACHINE_POD_TILES_Y) | bc)
+BSG_MACHINE_NUM_PODS                 := $(shell echo $(BSG_MACHINE_PODS_X)*$(BSG_MACHINE_PODS_Y) | bc)
+BSG_MACHINE_NUM_VCACHE               := $(shell echo $(BSG_MACHINE_POD_TILES_X)*2*$(BSG_MACHINE_NUM_PODS) | bc)
+BSG_MACHINE_DRAM_CHANNELS            := $(shell echo $(BSG_MACHINE_NUM_VCACHE)/$(BSG_MACHINE_VCACHE_PER_DRAM_CHANNEL) | bc)
+
+BSG_MACHINE_DRAM_WORDS               := $(shell echo $(__BSG_MACHINE_DRAMSIM3_CHIP_CH_SIZE_IN_WORDS)*$(BSG_MACHINE_DRAM_CHANNELS) | bc)
+BSG_MACHINE_DRAM_PER_CACHE_WORDS      = $(shell echo "$(BSG_MACHINE_DRAM_WORDS) / $(BSG_MACHINE_NUM_VCACHE)" | bc)
+
+# Aliases Required for BSG Manycore
+BSG_MACHINE_GLOBAL_X                  = $(BSG_MACHINE_POD_TILES_X)
+BSG_MACHINE_GLOBAL_Y                  = $(BSG_MACHINE_POD_TILES_Y)
+BSG_MACHINE_DRAM_BANK_WORDS           = $(BSG_MACHINE_DRAM_PER_CACHE_WORDS)
+BSG_MACHINE_DRAM_BANK_SIZE_WORDS      = $(BSG_MACHINE_DRAM_BANK_WORDS)
+BSG_MACHINE_VCACHE_BLOCK_SIZE_WORDS   = $(BSG_MACHINE_VCACHE_LINE_WORDS)
+BSG_MACHINE_NUM_VCACHE_ROWS           = $(BSG_MACHINE_POD_VCACHE_NUM_ROWS)
+
+BSG_MACHINE_MAX_EPA_WIDTH             = 28
+BSG_MACHINE_DATA_WIDTH                = 32
+
+# Define BSG_MACHINE_NAME
+BSG_MACHINE_NAME                      =BSG_PX$(BSG_MACHINE_PODS_X)PY$(BSG_MACHINE_PODS_Y)
+BSG_MACHINE_NAME                     :=$(BSG_MACHINE_NAME)_DX$(BSG_MACHINE_POD_TILES_X)DY$(BSG_MACHINE_POD_TILES_Y)
+BSG_MACHINE_NAME                     :=$(BSG_MACHINE_NAME)_$(BSG_MACHINE_MEM_CFG:e_%=%)
+
+# This flag has to be always 0 by default. Conditional
+# assignment allows user to set this flag through
+# environment when required.
+BSG_MACHINE_BRANCH_TRACE_EN          ?= 0
