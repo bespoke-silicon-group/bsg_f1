@@ -182,3 +182,11 @@ help:
 clean:
 	rm -f bfs_stats.txt
 
+
+###############
+# Blood graph #
+###############
+blood: blood_graph_ch0.png blood_graph_ch1.png
+
+blood_graph_ch0.png blood_graph_ch1.png: %.png: %.log
+	python3 $(BSG_MANYCORE_DIR)/software/py/dramsim3_blood_graph.py $< $@

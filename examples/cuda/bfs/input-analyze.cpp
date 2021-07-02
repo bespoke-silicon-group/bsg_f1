@@ -21,9 +21,10 @@ int main(int argc, char *argv[])
     ROOT = argv[2];
     ITERS = atoi(argv[3]);
     OUTPUT_NAME = argv[4];
-    
-    WGraph wg = WGraph::FromGraph500Data(Graph500Data::FromFile(INPUT_NAME));
 
+    printf("Reading in %s\n", INPUT_NAME.c_str());
+    WGraph wg = WGraph::FromGraph500Data(Graph500Data::FromFile(INPUT_NAME));
+    
     if (ROOT == "avg") {
         root = static_cast<int>(wg.node_with_avg_degree());
     } else if (ROOT == "max") {
@@ -31,7 +32,8 @@ int main(int argc, char *argv[])
     } else {
         root = atoi(ROOT.c_str());
     }
-
+    printf("Selected %d as the root\n", root);
+    
     std::vector<SparsePushBFS> stats = SparsePushBFS::RunBFS(wg, root, ITERS, false);
 
     // write the output

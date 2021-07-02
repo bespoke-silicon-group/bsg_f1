@@ -129,6 +129,9 @@ $(TESTS_MAKEFILE): %/Makefile: template.mk
 	@mkdir -p $*
 	@cp $< $@
 
+.PHONY: tests_makefile
+tests_makefile: $(TESTS_MAKEFILE)
+
 $(TESTS): %: %/Makefile %/parameters.mk
 
 TESTS_EXEC	= $(addsuffix .exec,$(TESTS))
@@ -152,20 +155,26 @@ profile: $(TESTS_PROFILE)
 debug: $(TESTS_DEBUG)
 saifgen: $(TESTS_SAIFGEN)
 
+TESTS_BLOOD = $(addsuffix .blood,$(TESTS))
+$(TESTS_BLOOD): %.blood: %
+	$(MAKE) -C $* blood
+
+blood: $(TESTS_BLOOD)
+
 # some support executables
 graphtools-dir = $(EXAMPLES_PATH)/cuda/bfs/graph-tools
 include $(graphtools-dir)/libgraphtools.mk
 
-input-gen input-analyze: $(libgraphtools-interface-headers)
-input-gen input-analyze: $(libgraphtools-interface-libraries)
-input-gen input-analyze: CXXFLAGS+=$(libgraphtools-interface-cxxflags)
-input-gen input-analyze: CXXFLAGS+=$(libgraphtools-interface-ldflags)
-input-gen:     input-gen.cpp
-input-analyze: input-analyze.cpp
-input-gen input-analyze:
-	$(CXX) $(filter %.cpp,$^) $(libgraphtools-interface-cxxflags) $(libgraphtools-interface-ldflags) -o $@
+SUPPORT_TOOLS = input-gen input-analyze input-degree-list
+$(SUPPORT_TOOLS): $(libgraphtools-interface-headers)
+$(SUPPORT_TOOLS): $(libgraphtools-interface-libraries)
+$(SUPPORT_TOOLS): CXXFLAGS+=$(libgraphtools-interface-cxxflags)
+$(SUPPORT_TOOLS): CXXFLAGS+=$(libgraphtools-interface-ldflags)
+$(SUPPORT_TOOLS): %: %.cpp
+$(SUPPORT_TOOLS):
+	$(CXX) $(filter %.cpp,$^) $(CXXFLAGS) -o $@
 
-support-tools: input-gen input-analyze
+support-tools: $(SUPPORT_TOOLS)
 
 
 purge:
