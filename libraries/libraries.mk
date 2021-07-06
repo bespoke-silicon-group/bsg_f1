@@ -28,6 +28,7 @@
 ifndef __BSG_LIBRARIES_MK
 __BSG_LIBRARIES_MK := 1
 
+LIB_SSOURCES   +=
 LIB_CSOURCES   +=
 LIB_CSOURCES   += $(LIBRARIES_PATH)/bsg_manycore_config_id_to_string.c
 LIB_CSOURCES   += $(LIBRARIES_PATH)/bsg_manycore_memsys.c
@@ -99,6 +100,7 @@ LIB_DEBUG_OBJECTS  +=
 
 LIB_OBJECTS += $(patsubst %cpp,%o,$(LIB_CXXSOURCES))
 LIB_OBJECTS += $(patsubst %c,%o,$(LIB_CSOURCES))
+LIB_OBJECTS += $(patsubst %S,%o,$(LIB_SSOURCES))
 
 LIB_OBJECTS_CUDA_POD_REPL += $(patsubst %cpp,%o,$(LIB_CXXSOURCES_CUDA_POD_REPL))
 LIB_OBJECTS_REGRESSION    += $(patsubst %cpp,%o,$(LIB_CXXSOURCES_REGRESSION))
@@ -114,10 +116,16 @@ $(LIB_OBJECTS) $(LIB_OBJECTS_CUDA_POD_REPL) $(LIB_OBJECTS_REGRESSION): INCLUDES 
 $(LIB_OBJECTS) $(LIB_OBJECTS_CUDA_POD_REPL) $(LIB_OBJECTS_REGRESSION): INCLUDES += -I$(LIBRARIES_PATH)/xcl
 $(LIB_OBJECTS) $(LIB_OBJECTS_CUDA_POD_REPL) $(LIB_OBJECTS_REGRESSION): INCLUDES += -I$(LIBRARIES_PATH)/features/dma
 $(LIB_OBJECTS) $(LIB_OBJECTS_CUDA_POD_REPL) $(LIB_OBJECTS_REGRESSION): INCLUDES += -I$(LIBRARIES_PATH)/features/profiler
+$(LIB_OBJECTS) $(LIB_OBJECTS_CUDA_POD_REPL) $(LIB_OBJECTS_REGRESSION): INCLUDES += -I$(LIBRARIES_PATH)/features/tracer
 $(LIB_OBJECTS) $(LIB_OBJECTS_CUDA_POD_REPL) $(LIB_OBJECTS_REGRESSION): INCLUDES += -I$(BSG_PLATFORM_PATH)
+$(LIB_OBJECTS) $(LIB_OBJECTS_CUDA_POD_REPL) $(LIB_OBJECTS_REGRESSION): INCLUDES += $(LIB_PLATFORM_INCLUDES)
 
 $(LIB_OBJECTS) $(LIB_OBJECTS_CUDA_POD_REPL) $(LIB_OBJECTS_REGRESSION): CFLAGS    += -std=c11 -fPIC $(INCLUDES) -D_GNU_SOURCE -D_BSD_SOURCE -D_DEFAULT_SOURCE
 $(LIB_OBJECTS) $(LIB_OBJECTS_CUDA_POD_REPL) $(LIB_OBJECTS_REGRESSION): CXXFLAGS  += -std=c++11 -fPIC $(INCLUDES) -D_GNU_SOURCE -D_BSD_SOURCE -D_DEFAULT_SOURCE
+# We should move this from AWS (and keep the license)
+$(LIB_OBJECTS) $(LIB_OBJECTS_CUDA_POD_REPL) $(LIB_OBJECTS_REGRESSION): INCLUDES += -I$(AWS_FPGA_REPO_DIR)/SDAccel/userspace/include
+$(LIB_OBJECTS) $(LIB_OBJECTS_CUDA_POD_REPL) $(LIB_OBJECTS_REGRESSION): CFLAGS    += -O3 -std=c11 -fPIC -D_GNU_SOURCE -D_BSD_SOURCE -D_DEFAULT_SOURCE
+$(LIB_OBJECTS) $(LIB_OBJECTS_CUDA_POD_REPL) $(LIB_OBJECTS_REGRESSION): CXXFLAGS  += -O3 -std=c++11 -fPIC -D_GNU_SOURCE -D_BSD_SOURCE -D_DEFAULT_SOURCE
 # Need to move this, eventually
 #$(LIB_OBJECTS) $(PLATFORM_OBJECTS): $(BSG_MACHINE_PATH)/bsg_manycore_machine.h
 
@@ -135,21 +143,37 @@ $(BSG_PLATFORM_PATH)/libbsg_manycore_runtime.so.1.0: $(LIB_OBJECTS)
 
 $(BSG_PLATFORM_PATH)/libbsgmc_cuda_legacy_pod_repl.so.1.0: LDFLAGS  :=
 $(BSG_PLATFORM_PATH)/libbsgmc_cuda_legacy_pod_repl.so.1.0: INCLUDES :=
+
 $(BSG_PLATFORM_PATH)/libbsgmc_cuda_legacy_pod_repl.so.1.0: LD = $(CXX)
 $(BSG_PLATFORM_PATH)/libbsgmc_cuda_legacy_pod_repl.so.1.0: $(LIB_OBJECTS_CUDA_POD_REPL)
 	$(LD) -shared -Wl,-soname,$(basename $(notdir $@)) -o $@ $^ $(LDFLAGS)
 
 $(BSG_PLATFORM_PATH)/libbsg_manycore_regression.so.1.0: LDFLAGS  :=
 $(BSG_PLATFORM_PATH)/libbsg_manycore_regression.so.1.0: INCLUDES :=
+
 $(BSG_PLATFORM_PATH)/libbsg_manycore_regression.so.1.0: LD = $(CXX)
 $(BSG_PLATFORM_PATH)/libbsg_manycore_regression.so.1.0: $(LIB_OBJECTS_REGRESSION)
 	$(LD) -shared -Wl,-soname,$(basename $(notdir $@)) -o $@ $^ $(LDFLAGS)
 
+$(BSG_PLATFORM_PATH)/libbsg_manycore_runtime.a: $(LIB_OBJECTS)
+	$(AR) -rcs $@ $^
+
+$(BSG_PLATFORM_PATH)/libbsgmc_cuda_legacy_pod_repl.a: $(LIB_OBJECTS_CUDA_POD_REPL)
+	$(AR) -rcs $@ $^
+
+$(BSG_PLATFORM_PATH)/libbsg_manycore_regression.a: $(LIB_OBJECTS_REGRESSION)
+	$(AR) -rcs $@ $^
+
 .PHONY: libraries.clean
 libraries.clean:
 	rm -f $(LIB_OBJECTS)
+	rm -f $(LIB_OBJECTS_CUDA_POD_REPL)
+	rm -f $(LIB_OBJECTS_REGRESSION)
 	rm -f $(BSG_PLATFORM_PATH)/libbsg_manycore_runtime.so.1.0
 	rm -f $(BSG_PLATFORM_PATH)/libbsgmc_cuda_legacy_pod_repl.so.1.0
 	rm -f $(BSG_PLATFORM_PATH)/libbsg_manycore_regression.so.1.0
+	rm -f $(BSG_PLATFORM_PATH)/libbsg_manycore_runtime.a
+	rm -f $(BSG_PLATFORM_PATH)/libbsgmc_cuda_legacy_pod_repl.a
+	rm -f $(BSG_PLATFORM_PATH)/libbsg_manycore_regression.a
 
 endif

@@ -193,4 +193,4 @@ int test_manycore_packets(int argc, char *argv[]) {
         return HB_MC_SUCCESS;   
 }
 
-declare_program_main(basename(__FILE__), test_manycore_packets);
+declare_program_main("test_manycore_packets", test_manycore_packets);

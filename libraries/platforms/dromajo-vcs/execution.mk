@@ -1,19 +1,19 @@
 # Copyright (c) 2019, University of Washington All rights reserved.
-# 
+#
 # Redistribution and use in source and binary forms, with or without modification,
 # are permitted provided that the following conditions are met:
-# 
+#
 # Redistributions of source code must retain the above copyright notice, this list
 # of conditions and the following disclaimer.
-# 
+#
 # Redistributions in binary form must reproduce the above copyright notice, this
 # list of conditions and the following disclaimer in the documentation and/or
 # other materials provided with the distribution.
-# 
+#
 # Neither the name of the copyright holder nor the names of its contributors may
 # be used to endorse or promote products derived from this software without
 # specific prior written permission.
-# 
+#
 # THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
 # ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 # WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -25,25 +25,47 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-# aws-fpga does not provide a DMA feature. Therefore, we compile
-# features/dma/noimpl/bsg_manycore_dma.cpp that simply returns
-# HB_MC_NO_IMPL for each function call.
-DMA_FEATURE_CXXSOURCES += $(LIBRARIES_PATH)/features/dma/noimpl/bsg_manycore_dma.cpp
 
-DMA_FEATURE_OBJECTS += $(patsubst %cpp,%o,$(DMA_FEATURE_CXXSOURCES))
-DMA_FEATURE_OBJECTS += $(patsubst %c,%o,$(DMA_FEATURE_CSOURCES))
+# All simulations should run with +ntb_random_seed_automatic.
+# 
+# From the VCS MX User-Guide: +ntb_random_seed_automatic Picks a unique value to
+# supply as the first seed used by a testbench. The value is determined by
+# combining the time of day, host name and process id. This ensures that no two
+# simulations have the same starting seed.
+SIM_ARGS += +ntb_random_seed_automatic
 
-$(DMA_FEATURE_OBJECTS): INCLUDES := -I$(LIBRARIES_PATH)
-$(DMA_FEATURE_OBJECTS): INCLUDES += -I$(LIBRARIES_PATH)/features/dma
-$(DMA_FEATURE_OBJECTS): CFLAGS   := -std=c11 -fPIC -D_GNU_SOURCE -D_DEFAULT_SOURCE $(INCLUDES)
-$(DMA_FEATURE_OBJECTS): CXXFLAGS := -std=c++11 -fPIC -D_GNU_SOURCE -D_DEFAULT_SOURCE $(INCLUDES)
+# These are the execution rules for the binaries. We can't pass
+# C-style arguments through the command line, so instead we specify
+# them as the VCS plusarg argument +c_args. Users can specify C-style
+# arguments using the C_ARGS make variable.
 
-$(BSG_PLATFORM_PATH)/libbsg_manycore_runtime.so.1.0: $(DMA_FEATURE_OBJECTS)
+%.log: % $(BSG_MANYCORE_KERNELS)
+	./$< $(SIM_ARGS) +c_args="$(C_ARGS)" 2>&1 | tee $@
 
-$(BSG_PLATFORM_PATH)/libbsg_manycore_runtime.a: $(DMA_FEATURE_OBJECTS)
+vanilla_stats.csv vcache_stats.csv router_stat.csv: % : %.profile.log
 
-.PHONY: dma_feature.clean
-dma_feature.clean:
-	rm -f $(DMA_FEATURE_OBJECTS)
+%.saif: %.saifgen.log ;
 
-platform.clean: dma_feature.clean
+%.vpd: SIM_ARGS += +vpdfile+$(@:.debug.log=.vpd)
+%.vpd: %.debug.log ;
+
+%.dve: %.vpd
+	$(DVE) -full64 -vpd $< &
+
+.PRECIOUS: %.log
+
+.PHONY: platform.execution.clean %.log %.vpd
+platform.execution.clean:
+	rm -rf vanilla_stats.csv
+	rm -rf infinite_mem_stats.csv
+	rm -rf vcache_stats.csv
+	rm -rf vanilla_operation_trace.csv
+	rm -rf operation_trace.csv
+	rm -rf vcache_operation_trace.csv
+	rm -rf router_stat.csv
+	rm -rf remote_load_trace.csv
+	rm -rf vanilla.log
+	rm -rf *.vpd
+	rm -rf dramsim3.json dramsim3.tag.json dramsim3.txt dramsim3epoch.json
+
+execution.clean: platform.execution.clean
