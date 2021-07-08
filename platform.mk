@@ -44,7 +44,7 @@ endif
 # We default to simulating the AWS machine uinsg Synopsys VCS-MX,
 # HOWEVER, if VCS_HOME is not defined then we will assume that
 # VCS/VCS-MX is not installed and try fall-back options
-BSG_PLATFORM ?= bigblade-vcs
+BSG_PLATFORM ?= bigblade-verilator
 
 # FIRST check if BSG_PLATFORM is valid. It should match of the
 # directories in libraries/platforms
