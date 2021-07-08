@@ -25,7 +25,13 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// A dummy header to interface with the endian.h header from the newlib toolchain
+// Note: Users should only use this file for compiling with NEWLIB
+
+// In GLIBC, this header file is present in the default include path however
+// in NEWLIB, the same header file is present in <default include path>/machine/
+// therefore, this dummy file is used to actually call the correct header file in
+// NEWLIB whilst still maintaining the same interface as GLIBC. This is done to prevent
+// changes to the CUDA-lite library code.
 
 #ifndef _ENDIAN_H
 #define _ENDIAN_H
