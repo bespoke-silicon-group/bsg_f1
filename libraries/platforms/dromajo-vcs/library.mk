@@ -77,10 +77,12 @@ $(BSG_PLATFORM_PATH)/libbsgmc_cuda_legacy_pod_repl.a: AR = $(RV_AR)
 $(BSG_PLATFORM_PATH)/libbsg_manycore_regression.a: AR = $(RV_AR)
 
 # Make the litteFS file system
-$(BSG_PLATFORM_PATH)/lfs.o: MKLFS = $(BLACKPARROT_SDK_DIR)/install/bin/dramfs_mklfs 128 64
-$(BSG_PLATFORM_PATH)/lfs.o:
-	$(MKLFS) > $(BSG_PLATFORM_PATH)/lfs.cpp
-	$(CXX) $(BSG_PLATFORM_PATH)/lfs.cpp -c -o $@ $(CXXFLAGS) $(INCLUDES)
+$(BSG_PLATFORM_PATH)/lfs.cpp: MKLFS = $(BLACKPARROT_SDK_DIR)/install/bin/dramfs_mklfs 128 64
+$(BSG_PLATFORM_PATH)/lfs.cpp:
+	$(MKLFS) > $@
+
+$(BSG_PLATFORM_PATH)/lfs.o: $(BSG_PLATFORM_PATH)/lfs.cpp
+	$(CXX) $^ -c -o $@ $(CXXFLAGS) $(INCLUDES)
 
 include $(LIBRARIES_PATH)/features/dma/simulation/dramsim3.mk
 include $(LIBRARIES_PATH)/features/dma/simulation/libdmamem.mk
@@ -151,6 +153,7 @@ $(BSG_PLATFORM_PATH)/libbsg_manycore_platform.so: %: %.1
 platform.clean:
 	rm -f $(PLATFORM_OBJECTS)
 	rm -f $(DROMAJO_OBJECTS)
+	rm -f $(BSG_PLATFORM_PATH)/lfs.cpp
 	rm -f $(BSG_PLATFORM_PATH)/lfs.o
 	rm -f $(BSG_PLATFORM_PATH)/libbsg_manycore_runtime.a
 	rm -f $(BSG_PLATFORM_PATH)/libbsgmc_cuda_legacy_pod_repl.a
