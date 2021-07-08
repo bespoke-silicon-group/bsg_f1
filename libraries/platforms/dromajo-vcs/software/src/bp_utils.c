@@ -191,8 +191,8 @@ void bp_finish(int16_t code) {
 	finish_pkt.request.x_src = (0 << 4) | 0;
 	finish_pkt.request.y_src = (1 << 3) | 1;
 	finish_pkt.request.op_v2 = HB_MC_PACKET_OP_REMOTE_SW;
-  finish_pkt.request.payload = (core_id << 16) | (0x0000FFFF & code);
-  finish_pkt.request.reg_id = 0;
+	finish_pkt.request.payload = (core_id << 16) | (0x0000FFFF & code);
+	finish_pkt.request.reg_id = 0;
 	if (code >= 0)
 		finish_pkt.request.addr = MC_FINISH_EPA_ADDR;
 	else
@@ -210,14 +210,14 @@ void bp_finish(int16_t code) {
  */
 void bp_hprint(uint8_t hex) {
 
-  hb_mc_packet_t hprint_pkt;
+	hb_mc_packet_t hprint_pkt;
 	hprint_pkt.request.x_dst = (0 << 4) | 0;
 	hprint_pkt.request.y_dst = (1 << 3) | 0;
 	hprint_pkt.request.x_src = (0 << 4) | 0;
 	hprint_pkt.request.y_src = (1 << 3) | 1;
 	hprint_pkt.request.op_v2 = HB_MC_PACKET_OP_REMOTE_SW;
-  hprint_pkt.request.payload = ('0' + hex);
-  hprint_pkt.request.reg_id = 0;
+	hprint_pkt.request.payload = ('0' + hex);
+	hprint_pkt.request.reg_id = 0;
 	hprint_pkt.request.addr = MC_STDOUT_EPA_ADDR;
 
 	int	err = bp_hb_write_to_mc_bridge(&hprint_pkt);
@@ -229,14 +229,14 @@ void bp_hprint(uint8_t hex) {
  */
 void bp_cprint(uint8_t ch) {
 
-  hb_mc_packet_t cprint_pkt;
+	hb_mc_packet_t cprint_pkt;
 	cprint_pkt.request.x_dst = (0 << 4) | 0;
 	cprint_pkt.request.y_dst = (1 << 3) | 0;
 	cprint_pkt.request.x_src = (0 << 4) | 0;
 	cprint_pkt.request.y_src = (1 << 3) | 1;
 	cprint_pkt.request.op_v2 = HB_MC_PACKET_OP_REMOTE_SW;
-  cprint_pkt.request.payload = ch;
-  cprint_pkt.request.reg_id = 0;
+	cprint_pkt.request.payload = ch;
+	cprint_pkt.request.reg_id = 0;
 	cprint_pkt.request.addr = MC_STDOUT_EPA_ADDR;
 
 	int err = bp_hb_write_to_mc_bridge(&cprint_pkt);

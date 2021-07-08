@@ -171,4 +171,3 @@ platform.link.clean:
 	rm -rf $(BSG_PLATFORM_PATH)/*.riscv
 
 link.clean: platform.link.clean ;
-
