@@ -1,7 +1,11 @@
 # Start code
+
+# This file should be deprecated when the BlackParrot firmware is capable of
+# parsing arguments.
+
 # This assembly file mimics the BlackParrot perch library start.S
 # with minor modifications to allow arguments to be loaded into the
-# corresponding registers for main
+# argument registers for main
 
 .section ".text.init"
 .globl _start
