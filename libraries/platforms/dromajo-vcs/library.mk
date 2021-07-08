@@ -155,5 +155,8 @@ platform.clean:
 	rm -f $(BSG_PLATFORM_PATH)/libbsg_manycore_runtime.a
 	rm -f $(BSG_PLATFORM_PATH)/libbsgmc_cuda_legacy_pod_repl.a
 	rm -f $(BSG_PLATFORM_PATH)/libbsg_manycore_regression.a
+	rm -f $(BSG_PLATFORM_PATH)/libbsg_manycore_platform.so.1.0
+	rm -f $(BSG_PLATFORM_PATH)/libbsg_manycore_platform.so.1
+	rm -f $(BSG_PLATFORM_PATH)/libbsg_manycore_platform.so
 
 libraries.clean: platform.clean
