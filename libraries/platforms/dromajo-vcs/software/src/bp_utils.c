@@ -13,7 +13,8 @@
  */
 int bp_hb_get_credits_used(int *credits_used) {
 	uint32_t *bp_to_mc_req_credits_addr = (uint32_t *) (MC_BASE_ADDR + BP_TO_MC_REQ_CREDITS_ADDR);
-	if ((*credits_used = (int) *bp_to_mc_req_credits_addr) < 0) {
+	*credits_used = (int) *bp_to_mc_req_credits_addr;
+	if (*credits_used < 0) {
 		bsg_pr_err("Credits used cannot be negative. Credits used = %d", *credits_used);
 		return HB_MC_FAIL;
 	}
@@ -46,7 +47,8 @@ int bp_hb_get_fifo_entries(int *entries, hb_mc_fifo_rx_t type) {
 		case HB_MC_FIFO_RX_REQ:
 		{
 			uint32_t *mc_to_bp_req_fifo_entries_addr = (uint32_t *) (MC_BASE_ADDR + MC_TO_BP_REQ_ENTRIES_ADDR);
-			if ((*entries = *mc_to_bp_req_fifo_entries_addr) < 0) {
+			*entries = *mc_to_bp_req_fifo_entries_addr;
+			if (*entries < 0) {
 				bsg_pr_err("Entries occupied cannot be negative. Entries = %d", *entries);
 				return HB_MC_FAIL;
 			}
@@ -55,7 +57,8 @@ int bp_hb_get_fifo_entries(int *entries, hb_mc_fifo_rx_t type) {
 		case HB_MC_FIFO_RX_RSP:
 		{
 			uint32_t *mc_to_bp_resp_fifo_entries_addr = (uint32_t *) (MC_BASE_ADDR + MC_TO_BP_RESP_ENTRIES_ADDR);
-			if ((*entries = *mc_to_bp_resp_fifo_entries_addr) < 0) {
+			*entries = *mc_to_bp_resp_fifo_entries_addr;
+			if (*entries < 0) {
 				bsg_pr_err("Entries occupied cannot be negative. Entries = %d", *entries);
 				return HB_MC_FAIL;
 			}
