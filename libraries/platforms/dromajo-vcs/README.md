@@ -12,10 +12,10 @@ The Dromajo-HammerBlade platform is a precursor to the BlackParrot-HammerBlade p
 
 ### BlackParrot SDK
 
-The BlackParrot SDK contains multiple submodules
-- Dromajo
-- Perch, the BlackParrot firmware
-- RV64 compilation toolchain
+The [BlackParrot SDK](https://github.com/black-parrot-sdk/black-parrot-sdk) contains multiple submodules
+- [Dromajo](https://github.com/bsg-external/dromajo/tree/4cbf5d91b880e172f15e0658cc72d4d6426ddcaa), the 64-bit RISC-V emulator
+- [Perch](https://github.com/black-parrot-sdk/perch/tree/f3a302b3a902e80952aa8b3b8649713398d1b749), the BlackParrot firmware
+- [PanicRoom](https://github.com/bespoke-silicon-group/bsg_newlib_dramfs/tree/28b5ac5a75847f346b54a91d4b9b9f58a62b590e), a RISC-V Newlib compiler with support for some system calls and a minimal filesystem.
 
 This directory must be placed at the same level as the replicant repository. It is recommended that users clone the Bladerunner meta repository which includes (or will include) the BlackParrot SDK as a submodule [(PR #66)](https://github.com/bespoke-silicon-group/bsg_bladerunner/pull/66) since this will set all the required environment variables correctly. Otherwise users must define the BLACKPARROT_SDK_DIR variable for the given execution environment.
 
