@@ -19,9 +19,9 @@ The [BlackParrot SDK](https://github.com/black-parrot-sdk/black-parrot-sdk) cont
 
 This directory must be placed at the same level as the replicant repository. It is recommended that users clone the Bladerunner meta repository which includes (or will include) the BlackParrot SDK as a submodule [(PR #66)](https://github.com/bespoke-silicon-group/bsg_bladerunner/pull/66) since this will set all the required environment variables correctly. Otherwise users must define the BLACKPARROT_SDK_DIR variable for the given execution environment.
 
-## Detailed Technical Manual
+## Technical Reference Manual
 
-Coming soon!
+Click [here](https://docs.google.com/document/d/1kUtyD3SiXP2qvbUDhtpx_eFufegscQs2cWla3pcxA-Q/edit?usp=sharing) to access the technical reference manual.
 
 ## Using the Simulation Infrastructure
 
