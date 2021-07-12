@@ -29,32 +29,5 @@
 #define TEST_MM_OPT_H
 
 
-#include <stdio.h>
-#include <sys/ioctl.h>
-#include <unistd.h>
-#include <string.h>
-#include <time.h>
-#include <stdlib.h>
-#include <random>
-#include <limits>
-
-#include "cuda_tests.h"
-
-typedef struct {
-        uint32_t N;    // Number of elements in the tensor
-        uint32_t dims; // Number of dimensions
-        eva_t strides; // Pointer to stride vector; Number of elements to skip between indexes in a dimension
-        eva_t sizes;   // Pointer to sizes vector; Number of elements in each dimension
-        eva_t data;    // Pointer to raw data
-} hb_mc_device_tensor_t;
-
-template <typename T>
-struct hb_mc_host_tensor_t{
-        uint32_t N;    // Number of elements in the tensor
-        uint32_t dims; // Number of dimensions
-        uint32_t *strides; // Pointer to stride vector; Number of elements
-        uint32_t *sizes;   // Pointer to sizes vector; Number of elements in each dimension
-        T *data;    // Pointer to raw data
-};
 
 #endif

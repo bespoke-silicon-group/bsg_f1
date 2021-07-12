@@ -25,9 +25,37 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "test_mm_opt.hpp"
+#include <stdio.h>
+#include <sys/ioctl.h>
+#include <unistd.h>
+#include <string.h>
+#include <time.h>
+#include <stdlib.h>
+#include <random>
+#include <limits>
+#include <bsg_manycore_cuda.h>
+#include <bsg_manycore_regression.h>
+#include <bsg_manycore_eva.h>
+
 #define BLOCK_DIM 16 // this block dim needs to match the same marco in the riscv binary
 #define ALLOC_NAME "default_allocator"
+
+typedef struct {
+        uint32_t N;    // Number of elements in the tensor
+        uint32_t dims; // Number of dimensions
+        eva_t strides; // Pointer to stride vector; Number of elements to skip between indexes in a dimension
+        eva_t sizes;   // Pointer to sizes vector; Number of elements in each dimension
+        eva_t data;    // Pointer to raw data
+} hb_mc_device_tensor_t;
+
+template <typename T>
+struct hb_mc_host_tensor_t{
+        uint32_t N;    // Number of elements in the tensor
+        uint32_t dims; // Number of dimensions
+        uint32_t *strides; // Pointer to stride vector; Number of elements
+        uint32_t *sizes;   // Pointer to sizes vector; Number of elements in each dimension
+        T *data;    // Pointer to raw data
+};
 
 void host_mm_opt(hb_mc_host_tensor_t<float> *result,
                 hb_mc_host_tensor_t<float> *mat1,
@@ -347,11 +375,7 @@ int kernel_matrix_mul (int argc, char **argv) {
         //************************************************************
         bsg_pr_info("Execute Kernel\n");
 
-        int instr_start, fops_start;
-        int instr_end, fops_end;
         uint64_t cycle_start, cycle_end;
-        hb_mc_manycore_get_icount((&device)->mc, e_instr_float, &fops_start);
-        hb_mc_manycore_get_icount((&device)->mc, e_instr_all, &instr_start);
         hb_mc_manycore_get_cycle((&device)->mc, &cycle_start);
 
         rc = hb_mc_device_tile_groups_execute(&device);
@@ -361,8 +385,6 @@ int kernel_matrix_mul (int argc, char **argv) {
         }
 
         hb_mc_manycore_get_cycle((&device)->mc, &cycle_end);
-        hb_mc_manycore_get_icount((&device)->mc, e_instr_float, &fops_end);
-        hb_mc_manycore_get_icount((&device)->mc, e_instr_all, &instr_end);
 
         //************************************************************
         // Copy result matrix back from device DRAM into host memory.
@@ -406,9 +428,6 @@ int kernel_matrix_mul (int argc, char **argv) {
 
         bsg_pr_info("\n\n====== EXECUTION STATISTICS ====== \n");
         bsg_pr_info("Cycles: %d\n", cycle_end-cycle_start);
-        bsg_pr_info("Instrs: %d, Flop Count: %d\n", instr_end-instr_start, fops_end-fops_start);
-        bsg_pr_info("Flop Rate: %3.2f\%\n", 100.0f  * static_cast<float>(fops_end-fops_start) / static_cast<float>(instr_end-instr_start));
-        bsg_pr_info("IPC: %.2f\%\n", static_cast<float>(instr_end-instr_start) / static_cast<float>(cycle_end-cycle_start));
         bsg_pr_info("====== END EXECUTION STATISTICS ====== \n\n\n");
 
         return HB_MC_SUCCESS;
