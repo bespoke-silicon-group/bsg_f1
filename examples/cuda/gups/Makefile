@@ -79,5 +79,13 @@ saifgen:   $(filter %__saifgen_run,$(TESTS))
 dis: $(TESTS_DISASSEMBLY)
 blood_graph: $(TESTS_BLOOD_GRAPH)
 
+dramsim3.summary.csv:  $(addsuffix /dramsim3.tag.json,$(filter %__profile_run,$(TESTS)))
+	@echo Making $@
+	@PYTHONPATH=$(BSG_F1_DIR)/scripts/py python3 $(EXAMPLES_PATH)/cuda/gups/py/dramsim3.py $^
+
+vcache.summary.csv: $(addsuffix /vcache_stats.csv,$(TESTS))
+	@echo Creating $@
+	@PYTHONPATH=$(BSG_F1_DIR)/scripts/py python3 $(EXAMPLES_PATH)/cuda/gups/py/vcache.py $^
+
 purge:
 	rm -rf $(TESTS)
