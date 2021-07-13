@@ -20,6 +20,22 @@ extern "C" {
 #define HOST_Y_COORD 8
 #endif
 
+// BlackParrot coordinates
+// Note: Currently not all of these coordinates are in use
+// but might be useful during BlackParrot integration
+#ifndef BP_COORDS
+#define BP_POD_X 0
+#define BP_POD_Y 1
+// Coordinates of BP-HB bridge used for manycore communication
+#define BP_HOST_LINK_X 15
+#define BP_HOST_LINK_Y 9
+// Coordinates of BP-HB bridge used for DRAM loads and stores
+#define BP_DRAM_0_LINK_X 15
+#define BP_DRAM_0_LINK_Y 10
+#define BP_DRAM_1_LINK_X 15
+#define BP_DRAM_1_LINK_Y 11
+#endif
+
 // Memory mapped addresses to interact with the BlackParrot host (aka simulator)
 #define HB_MC_HOST_EPA_ARGS_START 0x0000
 #define HB_MC_HOST_EPA_ARGS_FINISH 0x00FF

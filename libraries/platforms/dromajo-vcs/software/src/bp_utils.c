@@ -65,8 +65,8 @@ void bp_finish(int16_t code) {
 	hb_mc_packet_t finish_pkt;
 	finish_pkt.request.x_dst = HOST_X_COORD;
 	finish_pkt.request.y_dst = HOST_Y_COORD;
-	finish_pkt.request.x_src = (0 << 4) | 0;
-	finish_pkt.request.y_src = (1 << 3) | 1;
+	finish_pkt.request.x_src = BP_HOST_LINK_X;
+	finish_pkt.request.y_src = BP_HOST_LINK_Y;
 	finish_pkt.request.op_v2 = HB_MC_PACKET_OP_REMOTE_SW;
 	finish_pkt.request.payload = (core_id << 16) | (0x0000FFFF & code);
 	finish_pkt.request.reg_id = 0;
@@ -90,8 +90,8 @@ void bp_hprint(uint8_t hex) {
 	hb_mc_packet_t hprint_pkt;
 	hprint_pkt.request.x_dst = HOST_X_COORD;
 	hprint_pkt.request.y_dst = HOST_Y_COORD;
-	hprint_pkt.request.x_src = (0 << 4) | 0;
-	hprint_pkt.request.y_src = (1 << 3) | 1;
+	hprint_pkt.request.x_src = BP_HOST_LINK_X;
+	hprint_pkt.request.y_src = BP_HOST_LINK_Y;
 	hprint_pkt.request.op_v2 = HB_MC_PACKET_OP_REMOTE_SW;
 	hprint_pkt.request.payload = ('0' + hex);
 	hprint_pkt.request.reg_id = 0;
@@ -109,8 +109,8 @@ void bp_cprint(uint8_t ch) {
 	hb_mc_packet_t cprint_pkt;
 	cprint_pkt.request.x_dst = HOST_X_COORD;
 	cprint_pkt.request.y_dst = HOST_Y_COORD;
-	cprint_pkt.request.x_src = (0 << 4) | 0;
-	cprint_pkt.request.y_src = (1 << 3) | 1;
+	cprint_pkt.request.x_src = BP_HOST_LINK_X;
+	cprint_pkt.request.y_src = BP_HOST_LINK_Y;
 	cprint_pkt.request.op_v2 = HB_MC_PACKET_OP_REMOTE_SW;
 	cprint_pkt.request.payload = ch;
 	cprint_pkt.request.reg_id = 0;

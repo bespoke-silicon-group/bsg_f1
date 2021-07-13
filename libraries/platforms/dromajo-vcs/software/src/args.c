@@ -33,8 +33,8 @@ void __init_args(void) {
   // BlackParrot FIFO interface is at POD (X, Y) = (0, 1), SUBCOORD (X, Y) = (0, 1)
   args_req_pkt.request.x_dst = HOST_X_COORD;
   args_req_pkt.request.y_dst = HOST_Y_COORD;
-  args_req_pkt.request.x_src = (0 << 4) | 0;
-  args_req_pkt.request.y_src = (1 << 3) | 1;
+  args_req_pkt.request.x_src = BP_HOST_LINK_X;
+  args_req_pkt.request.y_src = BP_HOST_LINK_Y;
   args_req_pkt.request.op_v2 = HB_MC_PACKET_OP_REMOTE_LOAD;
   args_req_pkt.request.payload = 0;
   args_req_pkt.request.reg_id = 0;

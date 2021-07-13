@@ -328,8 +328,8 @@ int hb_mc_platform_get_config_at(hb_mc_manycore_t *mc, unsigned int idx, hb_mc_c
   {
     config_req_pkt.request.x_dst = HOST_X_COORD;
     config_req_pkt.request.y_dst = HOST_Y_COORD;
-    config_req_pkt.request.x_src = (0 << 4) | 0;
-    config_req_pkt.request.y_src = (1 << 3) | 1;
+    config_req_pkt.request.x_src = BP_HOST_LINK_X;
+    config_req_pkt.request.y_src = BP_HOST_LINK_Y;
     config_req_pkt.request.op_v2 = HB_MC_PACKET_OP_REMOTE_LOAD;
     config_req_pkt.request.payload = 0;
     config_req_pkt.request.reg_id = 0;
@@ -385,8 +385,8 @@ int hb_mc_platform_fence(hb_mc_manycore_t *mc, long timeout) {
   // Prepare host packet to query TX vacancy
   fence_req_pkt.request.x_dst = HOST_X_COORD;
   fence_req_pkt.request.y_dst = HOST_Y_COORD;
-  fence_req_pkt.request.x_src = (0 << 4) | 0;
-  fence_req_pkt.request.y_src = (1 << 3) | 1;
+  fence_req_pkt.request.x_src = BP_HOST_LINK_X;
+  fence_req_pkt.request.y_src = BP_HOST_LINK_Y;
   fence_req_pkt.request.op_v2 = HB_MC_PACKET_OP_REMOTE_LOAD;
   fence_req_pkt.request.payload = 0;
   fence_req_pkt.request.reg_id = 0;
@@ -498,8 +498,8 @@ int hb_mc_platform_wait_reset_done(hb_mc_manycore_t *mc) {
 
   reset_req_pkt.request.x_dst = HOST_X_COORD;
   reset_req_pkt.request.y_dst = HOST_Y_COORD;
-  reset_req_pkt.request.x_src = (0 << 4) | 0;
-  reset_req_pkt.request.y_src = (1 << 3) | 1;
+  reset_req_pkt.request.x_src = BP_HOST_LINK_X;
+  reset_req_pkt.request.y_src = BP_HOST_LINK_Y;
   reset_req_pkt.request.op_v2 = HB_MC_PACKET_OP_REMOTE_LOAD;
   reset_req_pkt.request.payload = 0;
   reset_req_pkt.request.reg_id = 0;
