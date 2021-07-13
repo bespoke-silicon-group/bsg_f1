@@ -513,6 +513,7 @@ extern void *__argp_input (__const struct argp *__restrict __argp,
 			   __const struct argp_state *__restrict __state)
      __THROW;
 
+// Sripathi:
 // Always define functions in a header file with the static modifier.
 // Defining functions with "extern inline" in a header file is just wrong.
 // Switch to using "static inline" to make the function visible wherever

@@ -136,6 +136,7 @@ argp_default_parser (int key, char *arg, struct argp_state *state)
 		case OPT_HANG:
 			_argp_hang = atoi (arg ? arg : "3600");
 			while (_argp_hang-- > 0)
+        // Sripathi:
 				// Use a for loop to hang the execution rather than sleep
 				// since it is not implemented
 				// This will consume power but we don't really care since we will 
@@ -914,12 +915,14 @@ __argp_parse (const struct argp *argp, int argc, char **argv, unsigned flags,
      to be parsed (which in some cases isn't actually an error).  */
   int arg_ebadkey = 0;
 
+  // Sripathi:
 	// Forward declare the struct pointers since malloc is being used instead of alloca
 	struct argp_child *child;
 	struct argp *top_argp;
   if (! (flags & ARGP_NO_HELP))
 	/* Add our own options.  */
 	{
+    // Sripathi:
 		// Originally alloca was used but since newlib does not implement that
 		// we are switching over to malloc which is a lot slower
 		child = (struct argp_child *) malloc (4 * sizeof (struct argp_child));
@@ -953,6 +956,7 @@ __argp_parse (const struct argp *argp, int argc, char **argv, unsigned flags,
     err = parser_finalize (&parser, err, arg_ebadkey, end_index);
   }
 
+  // Sripathi:
 	// malloc was used to allocate space for the argp_child and argp structs
 	// alloca automatically freed the memory when the function returned
 	// but since we are using malloc, we need to explicitly free it to
