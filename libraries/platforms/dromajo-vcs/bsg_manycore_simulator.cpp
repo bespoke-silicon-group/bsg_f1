@@ -196,7 +196,6 @@ int SimulationWrapper::dromajo_init() {
  * @returns true if execution is incomplete and/or without errors
  */
 bool SimulationWrapper::dromajo_step() {
-  // Execute dromajo with verbose mode on
   int err = dromajo_cosim_step(dromajo, 0, 0, 0, 0, 0, false, false);
   return (err != 0) ? false : true;
 }
@@ -224,7 +223,8 @@ int SimulationWrapper::dromajo_transmit_packet() {
     dromajo_to_mc_packet.words[3] = host_to_mc_req_fifo->fifo[3].front();
 
     // Intercept packets that are for the host and generate appropriate responses
-    if ((dromajo_to_mc_packet.request.x_dst == ((0 << 4) | 0)) && (dromajo_to_mc_packet.request.y_dst == ((1 << 3) | 0))) {
+    // TODO: Currently, these packets don't go over the network. They should
+    if ((dromajo_to_mc_packet.request.x_dst == HOST_X_COORD) && (dromajo_to_mc_packet.request.y_dst == HOST_Y_COORD)) {
       host_to_dromajo_packet.response.x_dst = dromajo_to_mc_packet.request.x_src;
       host_to_dromajo_packet.response.y_dst = dromajo_to_mc_packet.request.y_src;
       host_to_dromajo_packet.response.load_id = 0;
@@ -236,9 +236,9 @@ int SimulationWrapper::dromajo_transmit_packet() {
           // Fixme: Is there no struct for response opcode like in the manycore hardware
           host_to_dromajo_packet.response.op = dromajo_to_mc_packet.request.op_v2;
           switch (dromajo_to_mc_packet.request.addr) {
-            case MC_ARGS_START_EPA_ADDR ... MC_ARGS_FINISH_EPA_ADDR:
+            case HB_MC_HOST_EPA_ARGS_START ... HB_MC_HOST_EPA_ARGS_FINISH:
             {
-              uint32_t idx = dromajo_to_mc_packet.request.addr - MC_ARGS_START_EPA_ADDR;
+              uint32_t idx = dromajo_to_mc_packet.request.addr - HB_MC_HOST_EPA_ARGS_START;
               int num_characters = 0;
               // If all arguments have been read or there are no arguments to read
               // send a finish code
@@ -257,23 +257,23 @@ int SimulationWrapper::dromajo_transmit_packet() {
                 }
               }
               else
-                data = MC_HOST_OP_FINISH_CODE;
+                data = HB_MC_HOST_OP_FINISH_CODE;
             }
             break;
-            case MC_CONFIG_START_EPA_ADDR ... MC_CONFIG_FINISH_EPA_ADDR:
+            case HB_MC_HOST_EPA_CONFIG_START ... HB_MC_HOST_EPA_CONFIG_FINISH:
             {
-              uint32_t idx = dromajo_to_mc_packet.request.addr - MC_CONFIG_START_EPA_ADDR;
-              data = (idx <= HB_MC_CONFIG_MAX) ? dpi->config[idx] : MC_HOST_OP_FINISH_CODE;
+              uint32_t idx = dromajo_to_mc_packet.request.addr - HB_MC_HOST_EPA_CONFIG_START;
+              data = (idx <= HB_MC_CONFIG_MAX) ? dpi->config[idx] : HB_MC_HOST_OP_FINISH_CODE;
             }
             break;
-            case MC_RESET_DONE_EPA_ADDR:
+            case HB_MC_HOST_EPA_RESET_DONE:
             {
               bool done;
               dpi->reset_is_done(done);
               data = done ? 1 : 0;
             }
             break;
-            case MC_TX_VACANT_EPA_ADDR:
+            case HB_MC_HOST_EPA_TX_VACANT:
             {
               bool is_vacant;
               dpi->tx_is_vacant(is_vacant);
@@ -297,14 +297,14 @@ int SimulationWrapper::dromajo_transmit_packet() {
         case HB_MC_PACKET_OP_REMOTE_SW:
         {
           switch (dromajo_to_mc_packet.request.addr) {
-            case MC_STDOUT_EPA_ADDR:
-            case MC_STDERR_EPA_ADDR:
+            case HB_MC_HOST_EPA_STDOUT:
+            case HB_MC_HOST_EPA_STDERR:
             {
               printf("%c", (uint8_t) dromajo_to_mc_packet.request.payload);
               fflush(stdout);
             }
             break;
-            case MC_FINISH_EPA_ADDR:
+            case HB_MC_HOST_EPA_FINISH:
             {
               int16_t core_id = dromajo_to_mc_packet.request.payload >> 16;
               // Success error codes in BP is 0, but 0 is already used by the manycore. Any positive number indicates
@@ -317,7 +317,7 @@ int SimulationWrapper::dromajo_transmit_packet() {
               return err;
             }
             break;
-            case MC_FAIL_EPA_ADDR:
+            case HB_MC_HOST_EPA_FAIL:
             {
               int16_t core_id = dromajo_to_mc_packet.request.payload >> 16;
               int16_t err = 0x0000FFFF & dromajo_to_mc_packet.request.payload;

@@ -62,7 +62,12 @@ extern "C" {
 #define HB_MC_GLOBAL_EPA_LOGSZ 16
 
 #define HB_MC_HOST_EPA_FINISH 0xEAD0
+#define HB_MC_HOST_EPA_TIME 0xEAD4
 #define HB_MC_HOST_EPA_FAIL 0xEAD8
+#define HB_MC_HOST_EPA_STDOUT 0xEADC
+#define HB_MC_HOST_EPA_STDERR 0xEAE0
+#define HB_MC_HOST_EPA_BRANCH_TRACE 0xEAE4
+#define HB_MC_HOST_EPA_PRINT_STAT 0xEA0C
 #define EPA_FROM_BASE_AND_OFFSET(base, offset)  \
         (((base)+(offset)))
 

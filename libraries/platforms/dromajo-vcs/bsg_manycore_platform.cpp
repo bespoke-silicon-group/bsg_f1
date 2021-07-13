@@ -30,8 +30,9 @@
 #include <bsg_manycore_printing.h>
 #include <bsg_manycore_config.h>
 
+#include <bp_hb_platform.h>
+
 #include <set>
-#include <bp_utils.h>
 
 /* these are convenience macros that are only good for one line prints */
 #define manycore_pr_dbg(mc, fmt, ...) \
@@ -45,6 +46,130 @@
 
 #define manycore_pr_info(mc, fmt, ...) \
         bsg_pr_info("%s: " fmt, mc->name, ##__VA_ARGS__)
+
+/********************************** BlackParrot platform API **********************************/
+
+/*
+ * Reads the manycore bridge for number of credits used in the endpoint
+ * @param[in] credits_used --> Pointer to a location in memory that will hold the number of credits used
+ * @returns HB_MC_SUCCESS
+ */
+int bp_hb_get_credits_used(int *credits_used) {
+	uint32_t *bp_to_mc_req_credits_addr = (uint32_t *) (MC_BASE_ADDR + BP_TO_MC_REQ_CREDITS_ADDR);
+	*credits_used = (int) *bp_to_mc_req_credits_addr;
+	if (*credits_used < 0) {
+		bsg_pr_err("Credits used cannot be negative. Credits used = %d", *credits_used);
+		return HB_MC_FAIL;
+	}
+	return HB_MC_SUCCESS;
+}
+
+/*
+ * Writes a 128-bit manycore packet in 32-bit chunks to the manycore bridge FIFO
+ * @param[in] pkt --> Pointer to the manycore packet
+ * @returns HB_MC_SUCCESS
+ * TODO: Implement error checking (Requires some modifications in Dromajo)
+ */
+int bp_hb_write_to_mc_bridge(hb_mc_packet_t *pkt) {
+	uint32_t *bp_to_mc_req_fifo_addr = (uint32_t *) (MC_BASE_ADDR + BP_TO_MC_REQ_FIFO_ADDR);
+	for(int i = 0; i < 4; i++) {
+		*bp_to_mc_req_fifo_addr = pkt->words[i];
+		bp_to_mc_req_fifo_addr++;
+	}
+	return HB_MC_SUCCESS;
+}
+
+/*
+ * Checks if the MC to BP FIFO contains any valid elements to be read
+ * @param[in] entries --> Pointer to a location in memory that will hold the number of entries
+ * @param[in] type --> Type of FIFO to read from
+ * @returns HB_MC_SUCCESS on success or HB_MC_FAIL on fail
+ */
+int bp_hb_get_fifo_entries(int *entries, hb_mc_fifo_rx_t type) {
+	switch (type) {
+		case HB_MC_FIFO_RX_REQ:
+		{
+			uint32_t *mc_to_bp_req_fifo_entries_addr = (uint32_t *) (MC_BASE_ADDR + MC_TO_BP_REQ_ENTRIES_ADDR);
+			*entries = *mc_to_bp_req_fifo_entries_addr;
+			if (*entries < 0) {
+				bsg_pr_err("Entries occupied cannot be negative. Entries = %d", *entries);
+				return HB_MC_FAIL;
+			}
+		}
+		break;
+		case HB_MC_FIFO_RX_RSP:
+		{
+			uint32_t *mc_to_bp_resp_fifo_entries_addr = (uint32_t *) (MC_BASE_ADDR + MC_TO_BP_RESP_ENTRIES_ADDR);
+			*entries = *mc_to_bp_resp_fifo_entries_addr;
+			if (*entries < 0) {
+				bsg_pr_err("Entries occupied cannot be negative. Entries = %d", *entries);
+				return HB_MC_FAIL;
+			}
+		}
+		break;
+		default:
+		{
+			bsg_pr_err("%s: Unknown packet type\n", __func__);
+      return HB_MC_FAIL;
+		}
+		break;
+	}
+	return HB_MC_SUCCESS;
+}
+
+/*
+ * Reads the manycore bridge FIFOs in 32-bit chunks to form the 128-bit packet
+ * @param[in] pkt --> Pointer to the manycore packet
+ * @param[in] type --> Type of FIFO to read from
+ * @returns HB_MC_SUCCESS on success, HB_MC_FAIL if FIFO type is unknown
+ */
+int bp_hb_read_from_mc_bridge(hb_mc_packet_t *pkt, hb_mc_fifo_rx_t type) {
+	switch(type) {
+		case HB_MC_FIFO_RX_REQ:
+		{
+			uint32_t *mc_to_bp_req_fifo_addr = (uint32_t *) (MC_BASE_ADDR + MC_TO_BP_REQ_FIFO_ADDR);
+			uint32_t fifo_read_status = DROMAJO_RW_FAIL_CODE;
+			do {
+				for (int i = 0; i < 4; i++) {
+					pkt->words[i] = *mc_to_bp_req_fifo_addr;
+					fifo_read_status &= pkt->words[i];
+					mc_to_bp_req_fifo_addr++;
+				}
+			} while (fifo_read_status == DROMAJO_RW_FAIL_CODE);
+
+			// There is something wrong if the read status is equal to the FAIL code
+			if (fifo_read_status == DROMAJO_RW_FAIL_CODE)
+				return HB_MC_FAIL;
+		}
+		break;
+		case HB_MC_FIFO_RX_RSP:
+		{
+			uint32_t *mc_to_bp_resp_fifo_addr = (uint32_t *) (MC_BASE_ADDR + MC_TO_BP_RESP_FIFO_ADDR);
+			uint32_t fifo_read_status = DROMAJO_RW_FAIL_CODE;
+			do {
+				for (int i = 0; i < 4; i++) {
+					pkt->words[i] = *mc_to_bp_resp_fifo_addr;
+					fifo_read_status &= pkt->words[i];
+					mc_to_bp_resp_fifo_addr++;
+				}
+			} while(fifo_read_status == DROMAJO_RW_FAIL_CODE);
+
+			// There is something wrong if the read status is equal to the FAIL code
+			if (fifo_read_status == DROMAJO_RW_FAIL_CODE)
+				return HB_MC_FAIL;
+		}
+		break;
+		default:
+		{
+			bsg_pr_err("%s: Unknown packet type\n", __func__);
+      return HB_MC_FAIL;
+		}
+		break;
+	}
+	return HB_MC_SUCCESS;
+}
+
+/********************************** Manycore platform API **********************************/
 
 typedef struct hb_mc_platform_t
 {
@@ -201,14 +326,14 @@ int hb_mc_platform_get_config_at(hb_mc_manycore_t *mc, unsigned int idx, hb_mc_c
 
   if (idx < HB_MC_CONFIG_MAX)
   {
-    config_req_pkt.request.x_dst = (0 << 4) | 0;
-    config_req_pkt.request.y_dst = (1 << 3) | 0;
+    config_req_pkt.request.x_dst = HOST_X_COORD;
+    config_req_pkt.request.y_dst = HOST_Y_COORD;
     config_req_pkt.request.x_src = (0 << 4) | 0;
     config_req_pkt.request.y_src = (1 << 3) | 1;
     config_req_pkt.request.op_v2 = HB_MC_PACKET_OP_REMOTE_LOAD;
     config_req_pkt.request.payload = 0;
     config_req_pkt.request.reg_id = 0;
-    config_req_pkt.request.addr = MC_CONFIG_START_EPA_ADDR + idx;
+    config_req_pkt.request.addr = HB_MC_HOST_EPA_CONFIG_START + idx;
 
     // Note: Potentially dangerous to write to the FIFO without checking for credits
     // We get back credits used and not credits remaining and without the configuration
@@ -230,7 +355,7 @@ int hb_mc_platform_get_config_at(hb_mc_manycore_t *mc, unsigned int idx, hb_mc_c
     }
 
     uint32_t data = config_resp_pkt.response.data;
-    *config = (data != MC_HOST_OP_FINISH_CODE) ? data : 0;
+    *config = (data != HB_MC_HOST_OP_FINISH_CODE) ? data : 0;
 
     return HB_MC_SUCCESS;
   }
@@ -258,14 +383,14 @@ int hb_mc_platform_fence(hb_mc_manycore_t *mc, long timeout) {
   }
 
   // Prepare host packet to query TX vacancy
-  fence_req_pkt.request.x_dst = (0 << 4) | 0;
-  fence_req_pkt.request.y_dst = (1 << 3) | 0;
+  fence_req_pkt.request.x_dst = HOST_X_COORD;
+  fence_req_pkt.request.y_dst = HOST_Y_COORD;
   fence_req_pkt.request.x_src = (0 << 4) | 0;
   fence_req_pkt.request.y_src = (1 << 3) | 1;
   fence_req_pkt.request.op_v2 = HB_MC_PACKET_OP_REMOTE_LOAD;
   fence_req_pkt.request.payload = 0;
   fence_req_pkt.request.reg_id = 0;
-  fence_req_pkt.request.addr = MC_TX_VACANT_EPA_ADDR; // x86 Host address to poll tx vacancy
+  fence_req_pkt.request.addr = HB_MC_HOST_EPA_TX_VACANT; // x86 Host address to poll tx vacancy
 
   do
   {
@@ -371,14 +496,14 @@ int hb_mc_platform_wait_reset_done(hb_mc_manycore_t *mc) {
   int err;
   uint32_t data = 0;
 
-  reset_req_pkt.request.x_dst = (0 << 4) | 0;
-  reset_req_pkt.request.y_dst = (1 << 3) | 0;
+  reset_req_pkt.request.x_dst = HOST_X_COORD;
+  reset_req_pkt.request.y_dst = HOST_Y_COORD;
   reset_req_pkt.request.x_src = (0 << 4) | 0;
   reset_req_pkt.request.y_src = (1 << 3) | 1;
   reset_req_pkt.request.op_v2 = HB_MC_PACKET_OP_REMOTE_LOAD;
   reset_req_pkt.request.payload = 0;
   reset_req_pkt.request.reg_id = 0;
-  reset_req_pkt.request.addr = MC_RESET_DONE_EPA_ADDR;
+  reset_req_pkt.request.addr = HB_MC_HOST_EPA_RESET_DONE;
 
   do {
     // The platform setup ensures that this packet will not go over the network so

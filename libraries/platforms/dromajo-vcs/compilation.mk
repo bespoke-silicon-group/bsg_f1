@@ -35,7 +35,7 @@ NC=\033[0m
 # This file REQUIRES several variables to be set. They are typically
 # set by the Makefile that includes this makefile..
 # 
-DEFINES    += -D_DRAMFS
+DEFINES    += -D_DRAMFS -DHOST_X_COORD=$(BSG_MACHINE_HOST_COORD_X) -DHOST_Y_COORD=$(BSG_MACHINE_HOST_COORD_Y)
 INCLUDES   += -I$(LIBRARIES_PATH)
 INCLUDES   += -I$(BSG_PLATFORM_PATH)
 INCLUDES   += -I$(BSG_PLATFORM_PATH)/software/include
