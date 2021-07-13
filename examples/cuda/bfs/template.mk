@@ -122,9 +122,10 @@ RISCV_DEFINES += -DTILE_GROUP_DIM_Y=$(TILE_GROUP_DIM_Y)
 RISCV_DEFINES += -Dbsg_tiles_X=$(TILE_GROUP_DIM_X)
 RISCV_DEFINES += -Dbsg_tiles_Y=$(TILE_GROUP_DIM_Y)
 
+RISCV_CC  = $(RISCV_CLANG)
+RISCV_CXX = $(RISCV_CLANGXX)
+
 include $(EXAMPLES_PATH)/cuda/riscv.mk
-RISCV_CC  = RISCV_CLANG
-RISCV_CXX = RISCV_CLANGXX
 
 ###############################################################################
 # Execution flow

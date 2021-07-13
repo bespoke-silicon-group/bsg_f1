@@ -129,8 +129,10 @@ $(TESTS_MAKEFILE): %/Makefile: template.mk
 	@mkdir -p $*
 	@cp $< $@
 
-.PHONY: tests_makefile
+.PHONY: tests_makefile tests_parameters_mk tests_dir
 tests_makefile: $(TESTS_MAKEFILE)
+tests_parameters_mk: $(TESTS_PARAMETERS_MK)
+tests_dir: tests_makefile tests_parameters_mk
 
 $(TESTS): %: %/Makefile %/parameters.mk
 
