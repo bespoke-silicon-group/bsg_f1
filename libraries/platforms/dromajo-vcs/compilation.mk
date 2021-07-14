@@ -32,6 +32,9 @@ ORANGE=\033[0;33m
 RED=\033[0;31m
 NC=\033[0m
 
+# Include the machine configuration to make things clear(er)
+include $(BSG_MACHINE_PATH)/Makefile.machine.include
+
 # This file REQUIRES several variables to be set. They are typically
 # set by the Makefile that includes this makefile..
 # 
@@ -43,7 +46,7 @@ INCLUDES   += -I$(BLACKPARROT_SDK_DIR)/perch
 
 CXXFLAGS   += $(DEFINES) -march=rv64imafd -mabi=lp64 -mcmodel=medany
 CFLAGS     += $(DEFINES) -march=rv64imafd -mabi=lp64 -mcmodel=medany
-SFLAGS     += $(DEFINES) -march=rv64imafd -mabi=lp64 -mcmodel=medany
+ASFLAGS     += $(DEFINES) -march=rv64imafd -mabi=lp64 -mcmodel=medany
 
 CC ?= $(BLACKPARROT_SDK_DIR)/install/bin/riscv64-unknown-elf-dramfs-gcc
 CXX ?= $(BLACKPARROT_SDK_DIR)/install/bin/riscv64-unknown-elf-dramfs-g++
@@ -59,7 +62,7 @@ OBJDUMP ?= $(BLACKPARROT_SDK_DIR)/install/bin/riscv64-unknown-elf-dramfs-objdump
 	$(CXX) -c -o $@ $< $(INCLUDES) $(CXXFLAGS) $(CXXDEFINES)
 
 %.o: %.S
-	$(CC) -c -o $@ $< $(INCLUDES) $(SFLAGS)
+	$(CC) -c -o $@ $< $(INCLUDES) $(ASFLAGS)
 
 %.dis: %.elf
 	$(OBJDUMP) -d $^ > $@

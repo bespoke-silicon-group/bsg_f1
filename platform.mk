@@ -80,6 +80,13 @@ $(error $(shell echo -e "$(RED)BSG MAKE ERROR: VERILATOR not defined$(NC)"))
 endif
 endif
 
+# If using Dromajo, check if BLACKPARROT_SDK_DIR is defined
+ifeq ($(BSG_PLATFORM),dromajo-vcs)
+ifndef BLACKPARROT_SDK_DIR
+$(error $(shell echo -e "$(RED)BSG MAKE ERROR: BLACKPARROT_SDK_DIR not defined$(NC)"))
+endif
+endif
+
 # BSG Platform Path is the path to the target platform, i.e. the
 # substrate that actually runs the machine. 
 

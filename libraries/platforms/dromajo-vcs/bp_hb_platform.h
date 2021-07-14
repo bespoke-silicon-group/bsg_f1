@@ -13,11 +13,11 @@ extern "C" {
 
 // Host X and Y coordinates
 #ifndef HOST_X_COORD
-#define HOST_X_COORD 15
+#error HOST_X_COORD is undefined
 #endif
 
 #ifndef HOST_Y_COORD
-#define HOST_Y_COORD 8
+#error HOST_Y_COORD is undefined
 #endif
 
 // BlackParrot coordinates

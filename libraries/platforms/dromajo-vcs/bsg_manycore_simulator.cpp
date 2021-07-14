@@ -57,8 +57,12 @@ SimulationWrapper::SimulationWrapper(){
   dromajo_init();
   dpi_init();
 
-  if ((!dromajo) || (!dpi)) {
-    bsg_pr_err("Failed to initialize DPI or Dromajo pointer\n");
+  if (!dromajo) {
+    bsg_pr_err("Failed to initialize Dromajo pointer\n");
+  }
+
+  if (!dpi) {
+    bsg_pr_err("Failed to initialize DPI pointer\n");
   }
 }
 
@@ -69,7 +73,7 @@ SimulationWrapper::~SimulationWrapper(){
   this->top = nullptr;
 }
 
-// Causes time to proceed by 1 unit
+// Advances time to the next clock edge
 void SimulationWrapper::advance_time() {
   svScope prev;
   prev = svSetScope(top);
@@ -223,7 +227,8 @@ int SimulationWrapper::dromajo_transmit_packet() {
     dromajo_to_mc_packet.words[3] = host_to_mc_req_fifo->fifo[3].front();
 
     // Intercept packets that are for the host and generate appropriate responses
-    // TODO: Currently, these packets don't go over the network. They should
+    // TODO: Currently, these packets don't go over the network. In the real system, they will and the simulation infrastructure
+    // must emulate that as best as possible.
     if ((dromajo_to_mc_packet.request.x_dst == HOST_X_COORD) && (dromajo_to_mc_packet.request.y_dst == HOST_Y_COORD)) {
       host_to_dromajo_packet.response.x_dst = dromajo_to_mc_packet.request.x_src;
       host_to_dromajo_packet.response.y_dst = dromajo_to_mc_packet.request.y_src;

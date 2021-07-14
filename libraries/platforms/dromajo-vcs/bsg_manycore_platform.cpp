@@ -55,13 +55,13 @@
  * @returns HB_MC_SUCCESS
  */
 int bp_hb_get_credits_used(int *credits_used) {
-	uint32_t *bp_to_mc_req_credits_addr = (uint32_t *) (MC_BASE_ADDR + BP_TO_MC_REQ_CREDITS_ADDR);
-	*credits_used = (int) *bp_to_mc_req_credits_addr;
-	if (*credits_used < 0) {
-		bsg_pr_err("Credits used cannot be negative. Credits used = %d", *credits_used);
-		return HB_MC_FAIL;
-	}
-	return HB_MC_SUCCESS;
+  uint32_t *bp_to_mc_req_credits_addr = reinterpret_cast<uint32_t *>(MC_BASE_ADDR + BP_TO_MC_REQ_CREDITS_ADDR);
+  *credits_used = (int) (*bp_to_mc_req_credits_addr);
+  if (*credits_used < 0) {
+    bsg_pr_err("Credits used cannot be negative. Credits used = %d", *credits_used);
+    return HB_MC_FAIL;
+  }
+  return HB_MC_SUCCESS;
 }
 
 /*
@@ -71,12 +71,12 @@ int bp_hb_get_credits_used(int *credits_used) {
  * TODO: Implement error checking (Requires some modifications in Dromajo)
  */
 int bp_hb_write_to_mc_bridge(hb_mc_packet_t *pkt) {
-	uint32_t *bp_to_mc_req_fifo_addr = (uint32_t *) (MC_BASE_ADDR + BP_TO_MC_REQ_FIFO_ADDR);
-	for(int i = 0; i < 4; i++) {
-		*bp_to_mc_req_fifo_addr = pkt->words[i];
-		bp_to_mc_req_fifo_addr++;
-	}
-	return HB_MC_SUCCESS;
+  uint32_t *bp_to_mc_req_fifo_addr = reinterpret_cast<uint32_t *>(MC_BASE_ADDR + BP_TO_MC_REQ_FIFO_ADDR);
+  for(int i = 0; i < 4; i++) {
+    *bp_to_mc_req_fifo_addr = pkt->words[i];
+    bp_to_mc_req_fifo_addr++;
+  }
+  return HB_MC_SUCCESS;
 }
 
 /*
@@ -86,35 +86,27 @@ int bp_hb_write_to_mc_bridge(hb_mc_packet_t *pkt) {
  * @returns HB_MC_SUCCESS on success or HB_MC_FAIL on fail
  */
 int bp_hb_get_fifo_entries(int *entries, hb_mc_fifo_rx_t type) {
-	switch (type) {
-		case HB_MC_FIFO_RX_REQ:
-		{
-			uint32_t *mc_to_bp_req_fifo_entries_addr = (uint32_t *) (MC_BASE_ADDR + MC_TO_BP_REQ_ENTRIES_ADDR);
-			*entries = *mc_to_bp_req_fifo_entries_addr;
-			if (*entries < 0) {
-				bsg_pr_err("Entries occupied cannot be negative. Entries = %d", *entries);
-				return HB_MC_FAIL;
-			}
-		}
-		break;
-		case HB_MC_FIFO_RX_RSP:
-		{
-			uint32_t *mc_to_bp_resp_fifo_entries_addr = (uint32_t *) (MC_BASE_ADDR + MC_TO_BP_RESP_ENTRIES_ADDR);
-			*entries = *mc_to_bp_resp_fifo_entries_addr;
-			if (*entries < 0) {
-				bsg_pr_err("Entries occupied cannot be negative. Entries = %d", *entries);
-				return HB_MC_FAIL;
-			}
-		}
-		break;
-		default:
-		{
-			bsg_pr_err("%s: Unknown packet type\n", __func__);
+  uint32_t *addr;
+  switch (type) {
+    case HB_MC_FIFO_RX_REQ: addr = reinterpret_cast<uint32_t *>(MC_BASE_ADDR + MC_TO_BP_REQ_ENTRIES_ADDR);
+    break;
+    case HB_MC_FIFO_RX_RSP: addr = reinterpret_cast<uint32_t *>(MC_BASE_ADDR + MC_TO_BP_RESP_ENTRIES_ADDR);
+    break;
+    default:
+    {
+      bsg_pr_err("%s: Unknown packet type\n", __func__);
       return HB_MC_FAIL;
-		}
-		break;
-	}
-	return HB_MC_SUCCESS;
+    }
+    break;
+  }
+  
+  *entries = *addr;
+  if (*entries < 0) {
+    bsg_pr_err("Entries occupied cannot be negative. Entries = %d", *entries);
+    return HB_MC_FAIL;
+  }
+
+  return HB_MC_SUCCESS;
 }
 
 /*
@@ -124,49 +116,34 @@ int bp_hb_get_fifo_entries(int *entries, hb_mc_fifo_rx_t type) {
  * @returns HB_MC_SUCCESS on success, HB_MC_FAIL if FIFO type is unknown
  */
 int bp_hb_read_from_mc_bridge(hb_mc_packet_t *pkt, hb_mc_fifo_rx_t type) {
-	switch(type) {
-		case HB_MC_FIFO_RX_REQ:
-		{
-			uint32_t *mc_to_bp_req_fifo_addr = (uint32_t *) (MC_BASE_ADDR + MC_TO_BP_REQ_FIFO_ADDR);
-			uint32_t fifo_read_status = DROMAJO_RW_FAIL_CODE;
-			do {
-				for (int i = 0; i < 4; i++) {
-					pkt->words[i] = *mc_to_bp_req_fifo_addr;
-					fifo_read_status &= pkt->words[i];
-					mc_to_bp_req_fifo_addr++;
-				}
-			} while (fifo_read_status == DROMAJO_RW_FAIL_CODE);
-
-			// There is something wrong if the read status is equal to the FAIL code
-			if (fifo_read_status == DROMAJO_RW_FAIL_CODE)
-				return HB_MC_FAIL;
-		}
-		break;
-		case HB_MC_FIFO_RX_RSP:
-		{
-			uint32_t *mc_to_bp_resp_fifo_addr = (uint32_t *) (MC_BASE_ADDR + MC_TO_BP_RESP_FIFO_ADDR);
-			uint32_t fifo_read_status = DROMAJO_RW_FAIL_CODE;
-			do {
-				for (int i = 0; i < 4; i++) {
-					pkt->words[i] = *mc_to_bp_resp_fifo_addr;
-					fifo_read_status &= pkt->words[i];
-					mc_to_bp_resp_fifo_addr++;
-				}
-			} while(fifo_read_status == DROMAJO_RW_FAIL_CODE);
-
-			// There is something wrong if the read status is equal to the FAIL code
-			if (fifo_read_status == DROMAJO_RW_FAIL_CODE)
-				return HB_MC_FAIL;
-		}
-		break;
-		default:
-		{
-			bsg_pr_err("%s: Unknown packet type\n", __func__);
+  uint32_t *addr;
+  switch(type) {
+    case HB_MC_FIFO_RX_REQ: addr = reinterpret_cast<uint32_t *>(MC_BASE_ADDR + MC_TO_BP_REQ_FIFO_ADDR);
+    break;
+    case HB_MC_FIFO_RX_RSP: addr = reinterpret_cast<uint32_t *>(MC_BASE_ADDR + MC_TO_BP_RESP_FIFO_ADDR);
+    break;
+    default:
+    {
+      bsg_pr_err("%s: Unknown packet type\n", __func__);
       return HB_MC_FAIL;
-		}
-		break;
-	}
-	return HB_MC_SUCCESS;
+    }
+    break;
+  }
+
+  uint32_t fifo_read_status = DROMAJO_RW_FAIL_CODE;
+  do {
+    for (int i = 0; i < 4; i++) {
+      pkt->words[i] = *addr;
+      fifo_read_status &= pkt->words[i];
+      addr++;
+    }
+  } while (fifo_read_status == DROMAJO_RW_FAIL_CODE);
+
+  // There is something wrong if the read status is equal to the FAIL code
+  if (fifo_read_status == DROMAJO_RW_FAIL_CODE)
+    return HB_MC_FAIL;
+
+  return HB_MC_SUCCESS;
 }
 
 /********************************** Manycore platform API **********************************/
